@@ -13,8 +13,8 @@
     shift_up, slice, split, stone, string, sub, ternary, text, text_, wun, xor
 */
 
-import big_float from "./big_float.js";
-import big_integer from "./big_integer.js";
+import big_float from "./numbers/big_float";
+import big_integer from "./numbers/big_integer";
 
 function fail(what = "fail") {
     throw new Error(what);

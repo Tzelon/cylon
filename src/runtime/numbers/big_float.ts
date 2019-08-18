@@ -25,14 +25,10 @@
     sub, ten, two, zero
 */
 
-import big_integer from "./big_integer.js";
+import big_integer from './big_integer';
 
 function is_big_float(big) {
-    return (
-        typeof big === "object"
-        && big_integer.is_big_integer(big.coefficient)
-        && Number.isSafeInteger(big.exponent)
-    );
+    return typeof big === 'object' && big_integer.is_big_integer(big.coefficient) && Number.isSafeInteger(big.exponent);
 }
 
 function is_negative(big) {
@@ -65,23 +61,15 @@ function make_big_float(coefficient, exponent) {
 const big_integer_ten_million = big_integer.make(10000000);
 
 function number(a) {
-    return (
-        is_big_float(a)
-        ? (
-            a.exponent === 0
+    return is_big_float(a)
+        ? a.exponent === 0
             ? big_integer.number(a.coefficient)
-            : big_integer.number(a.coefficient) * (10 ** a.exponent)
-        )
-        : (
-            typeof a === "number"
-            ? a
-            : (
-                big_integer.is_big_integer(a)
-                ? big_integer.number(a)
-                : Number(a)
-            )
-        )
-    );
+            : big_integer.number(a.coefficient) * 10 ** a.exponent
+        : typeof a === 'number'
+        ? a
+        : big_integer.is_big_integer(a)
+        ? big_integer.number(a)
+        : Number(a);
 }
 
 function neg(a) {
@@ -89,43 +77,23 @@ function neg(a) {
 }
 
 function abs(a) {
-    return (
-        is_negative(a)
-        ? neg(a)
-        : a
-    );
+    return is_negative(a) ? neg(a) : a;
 }
 
 function conform_op(op) {
-    return function (a, b) {
+    return function(a, b) {
         const differential = a.exponent - b.exponent;
-        return (
-            differential === 0
+        return differential === 0
             ? make_big_float(op(a.coefficient, b.coefficient), a.exponent)
-            : (
-                differential > 0
-                ? make_big_float(
-                    op(
-                        big_integer.mul(
-                            a.coefficient,
-                            big_integer.power(big_integer.ten, differential)
-                        ),
-                        b.coefficient
-                    ),
-                    b.exponent
-                )
-                : make_big_float(
-                    op(
-                        a.coefficient,
-                        big_integer.mul(
-                            b.coefficient,
-                            big_integer.power(big_integer.ten, -differential)
-                        )
-                    ),
-                    a.exponent
-                )
-            )
-        );
+            : differential > 0
+            ? make_big_float(
+                  op(big_integer.mul(a.coefficient, big_integer.power(big_integer.ten, differential)), b.coefficient),
+                  b.exponent
+              )
+            : make_big_float(
+                  op(a.coefficient, big_integer.mul(b.coefficient, big_integer.power(big_integer.ten, -differential))),
+                  a.exponent
+              );
     };
 }
 
@@ -154,74 +122,55 @@ function div(dividend, divisor, precision = -4) {
     if (is_zero(divisor)) {
         return undefined;
     }
-    let {coefficient, exponent} = dividend;
+    let { coefficient, exponent } = dividend;
     exponent -= divisor.exponent;
 
-// Scale the coefficient to the desired precision.
+    // Scale the coefficient to the desired precision.
 
-    if (typeof precision !== "number") {
+    if (typeof precision !== 'number') {
         precision = number(precision);
     }
     if (exponent > precision) {
-        coefficient = big_integer.mul(
-            coefficient,
-            big_integer.power(big_integer.ten, exponent - precision)
-        );
+        coefficient = big_integer.mul(coefficient, big_integer.power(big_integer.ten, exponent - precision));
         exponent = precision;
     }
     let remainder;
-    [coefficient, remainder] = big_integer.divrem(
-        coefficient,
-        divisor.coefficient
-    );
+    [coefficient, remainder] = big_integer.divrem(coefficient, divisor.coefficient);
 
-// Round the result if necessary.
+    // Round the result if necessary.
 
-    if (!big_integer.abs_lt(
-        big_integer.add(remainder, remainder),
-        divisor.coefficient
-    )) {
-        coefficient = big_integer.add(
-            coefficient,
-            big_integer.signum(dividend.coefficient)
-        );
+    if (!big_integer.abs_lt(big_integer.add(remainder, remainder), divisor.coefficient)) {
+        coefficient = big_integer.add(coefficient, big_integer.signum(dividend.coefficient));
     }
     return make_big_float(coefficient, exponent);
 }
 
 function normalize(a) {
-    let {coefficient, exponent} = a;
+    let { coefficient, exponent } = a;
     if (coefficient.length < 2) {
         return zero;
     }
 
-// If the exponent is zero, it is already normal.
+    // If the exponent is zero, it is already normal.
 
     if (exponent !== 0) {
-
-// If the exponent is positive, multiply the coefficient by '10 **' exponent.
+        // If the exponent is positive, multiply the coefficient by '10 **' exponent.
 
         if (exponent > 0) {
-            coefficient = big_integer.mul(
-                coefficient,
-                big_integer.power(big_integer.ten, exponent)
-            );
+            coefficient = big_integer.mul(coefficient, big_integer.power(big_integer.ten, exponent));
             exponent = 0;
         } else {
             let quotient;
             let remainder;
 
-// While the exponent is negative, if the coefficient is divisible by ten,
-// then we do the division and add '1' to the exponent.
+            // While the exponent is negative, if the coefficient is divisible by ten,
+            // then we do the division and add '1' to the exponent.
 
-// To help this go a little faster, we first try units of ten million,
-// reducing 7 zeros at a time.
+            // To help this go a little faster, we first try units of ten million,
+            // reducing 7 zeros at a time.
 
             while (exponent <= -7 && (coefficient[1] & 127) === 0) {
-                [quotient, remainder] = big_integer.divrem(
-                    coefficient,
-                    big_integer_ten_million
-                );
+                [quotient, remainder] = big_integer.divrem(coefficient, big_integer_ten_million);
                 if (remainder !== big_integer.zero) {
                     break;
                 }
@@ -229,10 +178,7 @@ function normalize(a) {
                 exponent += 7;
             }
             while (exponent < 0 && (coefficient[1] & 1) === 0) {
-                [quotient, remainder] = big_integer.divrem(
-                    coefficient,
-                    big_integer.ten
-                );
+                [quotient, remainder] = big_integer.divrem(coefficient, big_integer.ten);
                 if (remainder !== big_integer.zero) {
                     break;
                 }
@@ -245,44 +191,31 @@ function normalize(a) {
 }
 
 function integer(a) {
+    // The integer function is like the normalize function except that it throws
+    // away significance. It discards the digits after the decimal point.
 
-// The integer function is like the normalize function except that it throws
-// away significance. It discards the digits after the decimal point.
-
-    let {coefficient, exponent} = a;
+    let { coefficient, exponent } = a;
     if (coefficient.length < 2) {
         return zero;
     }
 
-// If the exponent is zero, it is already an integer.
+    // If the exponent is zero, it is already an integer.
 
     if (exponent === 0) {
         return a;
     }
 
-// If the exponent is positive,
-// multiply the coefficient by 10 ** exponent.
+    // If the exponent is positive,
+    // multiply the coefficient by 10 ** exponent.
 
     if (exponent > 0) {
-        return make_big_float(
-            big_integer.mul(
-                coefficient,
-                big_integer.power(big_integer.ten, exponent)
-            ),
-            0
-        );
+        return make_big_float(big_integer.mul(coefficient, big_integer.power(big_integer.ten, exponent)), 0);
     }
 
-// If the exponent is negative, divide the coefficient by 10 ** -exponent.
-// This truncates the unnecessary bits. This might be a zero result.
+    // If the exponent is negative, divide the coefficient by 10 ** -exponent.
+    // This truncates the unnecessary bits. This might be a zero result.
 
-    return make_big_float(
-        big_integer.div(
-            coefficient,
-            big_integer.power(big_integer.ten, -exponent)
-        ),
-        0
-    );
+    return make_big_float(big_integer.div(coefficient, big_integer.power(big_integer.ten, -exponent)), 0);
 }
 
 function fraction(a) {
@@ -290,17 +223,16 @@ function fraction(a) {
 }
 
 function deconstruct(number) {
+    // This function deconstructs a number, reducing it to its components:
+    // a sign, an integer coefficient, and an exponent, such that
 
-// This function deconstructs a number, reducing it to its components:
-// a sign, an integer coefficient, and an exponent, such that
-
-//  '      number = sign * coefficient * (2 ** exponent)'
+    //  '      number = sign * coefficient * (2 ** exponent)'
 
     let sign = 1;
     let coefficient = number;
     let exponent = 0;
 
-// Remove the sign from the coefficient.
+    // Remove the sign from the coefficient.
 
     if (coefficient < 0) {
         coefficient = -coefficient;
@@ -308,28 +240,26 @@ function deconstruct(number) {
     }
 
     if (Number.isFinite(number) && number !== 0) {
-
-// Reduce the coefficient: We can obtain the exponent by dividing the number by
-// two until it goes to zero. We add the number of divisions to -1128, which is
-// the exponent of 'Number.MIN_VALUE' minus the number of bits in the
-// significand minus the bonus bit.
+        // Reduce the coefficient: We can obtain the exponent by dividing the number by
+        // two until it goes to zero. We add the number of divisions to -1128, which is
+        // the exponent of 'Number.MIN_VALUE' minus the number of bits in the
+        // significand minus the bonus bit.
 
         exponent = -1128;
         let reduction = coefficient;
         while (reduction !== 0) {
-
-// This loop is guaranteed to reach zero. Each division will decrement the
-// exponent of the reduction. When the exponent is so small that it can not
-// be decremented, then the internal subnormal significand will be shifted
-// right instead. Ultimately, all of the bits will be shifted out.
+            // This loop is guaranteed to reach zero. Each division will decrement the
+            // exponent of the reduction. When the exponent is so small that it can not
+            // be decremented, then the internal subnormal significand will be shifted
+            // right instead. Ultimately, all of the bits will be shifted out.
 
             exponent += 1;
             reduction /= 2;
         }
 
-// Reduce the exponent: When the exponent is zero, the number can be viewed
-// as an integer. If the exponent is not zero, then adjust to correct the
-// coefficient.
+        // Reduce the exponent: When the exponent is zero, the number can be viewed
+        // as an integer. If the exponent is not zero, then adjust to correct the
+        // coefficient.
 
         reduction = exponent;
         while (reduction > 0) {
@@ -342,7 +272,7 @@ function deconstruct(number) {
         }
     }
 
-// Return an object containing the three components and the original number.
+    // Return an object containing the three components and the original number.
 
     return {
         sign,
@@ -360,61 +290,50 @@ const number_pattern = /^(-?\d+)(?:\.(\d*))?(?:e(-?\d+))?$/;
 //.      [3] exp
 
 function make(a, b?) {
-
-//.      (big_integer)
-//.      (big_integer, exponent)
-//.      (string)
-//.      (string, radix)
-//.      (number)
+    //.      (big_integer)
+    //.      (big_integer, exponent)
+    //.      (string)
+    //.      (string, radix)
+    //.      (number)
 
     if (big_integer.is_big_integer(a)) {
         return make_big_float(a, b || 0);
     }
-    if (typeof a === "string") {
+    if (typeof a === 'string') {
         if (Number.isSafeInteger(b)) {
             return make(big_integer.make(a, b), 0);
         }
         let parts = a.match(number_pattern);
         if (parts) {
-            let frac = parts[2] || "";
-            return make(
-                big_integer.make(parts[1] + frac),
-                (Number(parts[3]) || 0) - frac.length
-            );
+            let frac = parts[2] || '';
+            return make(big_integer.make(parts[1] + frac), (Number(parts[3]) || 0) - frac.length);
         }
     }
 
-// If 'a' is a number, then we deconstruct it into its basis '2' exponent
-// and coefficient, and then reconstruct as a precise big float.
+    // If 'a' is a number, then we deconstruct it into its basis '2' exponent
+    // and coefficient, and then reconstruct as a precise big float.
 
-    if (typeof a === "number" && Number.isFinite(a)) {
+    if (typeof a === 'number' && Number.isFinite(a)) {
         if (a === 0) {
             return zero;
         }
-        let {sign, coefficient, exponent} = deconstruct(a);
+        let { sign, coefficient, exponent } = deconstruct(a);
         if (sign < 0) {
             coefficient = -coefficient;
         }
         coefficient = big_integer.make(coefficient);
 
-// If the exponent is negative, then we can divide by '2 ** abs(exponent)'.
+        // If the exponent is negative, then we can divide by '2 ** abs(exponent)'.
 
         if (exponent < 0) {
-            return normalize(div(
-                make(coefficient, 0),
-                make(big_integer.power(big_integer.two, -exponent), 0),
-                b
-            ));
+            return normalize(div(make(coefficient, 0), make(big_integer.power(big_integer.two, -exponent), 0), b));
         }
 
-// If the exponent is greater than zero, then we can multiply the coefficient
-// by '2 **' exponent.
+        // If the exponent is greater than zero, then we can multiply the coefficient
+        // by '2 **' exponent.
 
         if (exponent > 0) {
-            coefficient = big_integer.mul(
-                coefficient,
-                big_integer.power(big_integer.two, exponent)
-            );
+            coefficient = big_integer.mul(coefficient, big_integer.power(big_integer.two, exponent));
             exponent = 0;
         }
         return make(coefficient, exponent);
@@ -426,49 +345,47 @@ function make(a, b?) {
 
 function string(a: any, radix?) {
     if (is_zero(a)) {
-        return "0";
+        return '0';
     }
     if (is_big_float(radix)) {
         radix = normalize(radix);
-        return (
-            (radix && radix.exponent === 0)
+        return radix && radix.exponent === 0
             ? big_integer.string(integer(a).coefficient, radix.coefficient)
-            : undefined
-        );
+            : undefined;
     }
     a = normalize(a);
     let s = big_integer.string(big_integer.abs(a.coefficient));
     if (a.exponent < 0) {
         let point = s.length + a.exponent;
         if (point <= 0) {
-            s = "0".repeat(1 - point) + s;
+            s = '0'.repeat(1 - point) + s;
             point = 1;
         }
-        s = s.slice(0, point) + "." + s.slice(point);
+        s = s.slice(0, point) + '.' + s.slice(point);
     } else if (a.exponent > 0) {
-        s += "0".repeat(a.exponent);
+        s += '0'.repeat(a.exponent);
     }
     if (big_integer.is_negative(a.coefficient)) {
-        s = "-" + s;
+        s = '-' + s;
     }
     return s;
 }
 
 function scientific(a) {
     if (is_zero(a)) {
-        return "0";
+        return '0';
     }
     a = normalize(a);
     let s = big_integer.string(big_integer.abs(a.coefficient));
     let e = a.exponent + s.length - 1;
     if (s.length > 1) {
-        s = s.slice(0, 1) + "." + s.slice(1);
+        s = s.slice(0, 1) + '.' + s.slice(1);
     }
     if (e !== 0) {
-        s += "e" + e;
+        s += 'e' + e;
     }
     if (big_integer.is_negative(a.coefficient)) {
-        s = "-" + s;
+        s = '-' + s;
     }
     return s;
 }
@@ -495,4 +412,3 @@ export default Object.freeze({
     sub,
     zero
 });
-

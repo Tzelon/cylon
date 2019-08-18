@@ -10,61 +10,55 @@
     readonly, replace, slice, split, string, text
 */
 
-import big_float from "./big_float.js";
+import big_float from '../runtime/numbers/big_float';
 
 interface BaseToken {
-  id: string;
-  line_nr: number;
-  column_nr: number;
-  alphameric?: boolean;
-  origin?: any;
-  readonly?: boolean;
-  class?: "statement" | "suffix" | undefined;
-  zeroth?: any;
-  wunth?: any;
+    id: string;
+    line_nr: number;
+    column_nr: number;
+    alphameric?: boolean;
+    origin?: any;
+    readonly?: boolean;
+    class?: 'statement' | 'suffix' | undefined;
+    zeroth?: any;
+    wunth?: any;
 }
 
 interface ErrorToken extends BaseToken {
-  id: "(error)";
-  string: string;
+    id: '(error)';
+    string: string;
 }
 
 interface CommentToken extends BaseToken {
-  id: "(comment)";
-  comment: string;
+    id: '(comment)';
+    comment: string;
 }
 
 interface NameToken extends BaseToken {
-  alphameric: boolean;
-  column_to: number;
+    alphameric: boolean;
+    column_to: number;
 }
 
 interface NumberToken extends BaseToken {
-  id: "(number)";
-  readonly: boolean;
-  number: number;
-  text: string;
-  column_to: number;
+    id: '(number)';
+    readonly: boolean;
+    number: number;
+    text: string;
+    column_to: number;
 }
 
 interface TextToken extends BaseToken {
-  id: "(text)";
-  readonly: boolean;
-  text: string;
-  column_to: number;
+    id: '(text)';
+    readonly: boolean;
+    text: string;
+    column_to: number;
 }
 
 interface PunctuatorToken extends BaseToken {
-  column_to: number;
+    column_to: number;
 }
 
-export type Token =
-  | ErrorToken
-  | CommentToken
-  | NameToken
-  | NumberToken
-  | TextToken
-  | PunctuatorToken;
+export type Token = ErrorToken | CommentToken | NameToken | NumberToken | TextToken | PunctuatorToken;
 
 const rx_unicode_escapement = /\\u\{([0-9A-F]{4,6})\}/g;
 
@@ -86,123 +80,120 @@ const rx_token = /(\u0020+)|(#.*)|([a-zA-Z](?:\u0020[a-zA-Z]|[0-9a-zA-Z])*\??)|(
 //.     [5]  String
 //.     [6]  Punctuator
 
-export default Object.freeze(function tokenize(
-  source: string | string[],
-  comment: boolean = false
-) {
-  // 'tokenize' takes a source and produces from it an array of token objects.
-  // If the 'source' is not an array, then it is split into lines at the carriage
-  // return/linefeed. If 'comment' is true then comments are included as token
-  // objects. The parser does not want to see comments, but a software tool might.
+export default Object.freeze(function tokenize(source: string | string[], comment: boolean = false) {
+    // 'tokenize' takes a source and produces from it an array of token objects.
+    // If the 'source' is not an array, then it is split into lines at the carriage
+    // return/linefeed. If 'comment' is true then comments are included as token
+    // objects. The parser does not want to see comments, but a software tool might.
 
-  const lines = Array.isArray(source) ? source : source.split(rx_crlf);
-  let line_nr = 0;
-  let line = lines[0];
-  rx_token.lastIndex = 0;
+    const lines = Array.isArray(source) ? source : source.split(rx_crlf);
+    let line_nr = 0;
+    let line = lines[0];
+    rx_token.lastIndex = 0;
 
-  // The factory returns a generator that breaks the lines into token objects.
-  // The token objects contain an id, coordinates, and other information.
-  // Whitespace is not tokenized.
-  return function token_generator(): Token {
-    if (line === undefined) {
-      return;
-    }
-    let column_nr = rx_token.lastIndex;
-    // If we at the end of the line then drop to the next line
-    if (column_nr >= line.length) {
-      rx_token.lastIndex = 0;
-      line_nr += 1;
-      line = lines[line_nr];
-      return line === undefined ? undefined : token_generator();
-    }
-    let captives = rx_token.exec(line);
+    // The factory returns a generator that breaks the lines into token objects.
+    // The token objects contain an id, coordinates, and other information.
+    // Whitespace is not tokenized.
+    return function token_generator(): Token {
+        if (line === undefined) {
+            return;
+        }
+        let column_nr = rx_token.lastIndex;
+        // If we at the end of the line then drop to the next line
+        if (column_nr >= line.length) {
+            rx_token.lastIndex = 0;
+            line_nr += 1;
+            line = lines[line_nr];
+            return line === undefined ? undefined : token_generator();
+        }
+        let captives = rx_token.exec(line);
 
-    // Nothing matched.
+        // Nothing matched.
 
-    if (!captives) {
-      return {
-        id: "(error)",
-        line_nr,
-        column_nr,
-        string: line.slice(column_nr)
-      };
-    }
+        if (!captives) {
+            return {
+                id: '(error)',
+                line_nr,
+                column_nr,
+                string: line.slice(column_nr)
+            };
+        }
 
-    // Whitespace matched.
+        // Whitespace matched.
 
-    if (captives[1]) {
-      return token_generator();
-    }
+        if (captives[1]) {
+            return token_generator();
+        }
 
-    // A comment matched.
+        // A comment matched.
 
-    if (captives[2]) {
-      return comment
-        ? {
-            id: "(comment)",
-            comment: captives[2],
-            line_nr,
-            column_nr,
-            column_to: rx_token.lastIndex
-          }
-        : token_generator();
-    }
+        if (captives[2]) {
+            return comment
+                ? {
+                      id: '(comment)',
+                      comment: captives[2],
+                      line_nr,
+                      column_nr,
+                      column_to: rx_token.lastIndex
+                  }
+                : token_generator();
+        }
 
-    // A name matched.
+        // A name matched.
 
-    if (captives[3]) {
-      return {
-        id: captives[3],
-        alphameric: true,
-        line_nr,
-        column_nr,
-        column_to: rx_token.lastIndex
-      };
-    }
+        if (captives[3]) {
+            return {
+                id: captives[3],
+                alphameric: true,
+                line_nr,
+                column_nr,
+                column_to: rx_token.lastIndex
+            };
+        }
 
-    // A number literal matched.
+        // A number literal matched.
 
-    if (captives[4]) {
-      return {
-        id: "(number)",
-        readonly: true,
-        number: big_float.normalize(big_float.make(captives[4])),
-        text: captives[4],
-        line_nr,
-        column_nr,
-        column_to: rx_token.lastIndex
-      };
-    }
+        if (captives[4]) {
+            return {
+                id: '(number)',
+                readonly: true,
+                number: big_float.normalize(big_float.make(captives[4])),
+                text: captives[4],
+                line_nr,
+                column_nr,
+                column_to: rx_token.lastIndex
+            };
+        }
 
-    // A text literal matched.
+        // A text literal matched.
 
-    if (captives[5]) {
-      // We use '.replace' to convert '\u{xxxxxx}' to a codepoint
-      // and 'JSON.parse' to process the remaining escapes and remove the quotes.
+        if (captives[5]) {
+            // We use '.replace' to convert '\u{xxxxxx}' to a codepoint
+            // and 'JSON.parse' to process the remaining escapes and remove the quotes.
 
-      return {
-        id: "(text)",
-        readonly: true,
-        text: JSON.parse(
-          captives[5].replace(rx_unicode_escapement, function(ignore, code) {
-            return String.fromCodePoint(parseInt(code, 16));
-          })
-        ),
-        line_nr,
-        column_nr,
-        column_to: rx_token.lastIndex
-      };
-    }
+            return {
+                id: '(text)',
+                readonly: true,
+                text: JSON.parse(
+                    captives[5].replace(rx_unicode_escapement, function(ignore, code) {
+                        return String.fromCodePoint(parseInt(code, 16));
+                    })
+                ),
+                line_nr,
+                column_nr,
+                column_to: rx_token.lastIndex
+            };
+        }
 
-    // A punctuator matched.
+        // A punctuator matched.
 
-    if (captives[6]) {
-      return {
-        id: captives[6],
-        line_nr,
-        column_nr,
-        column_to: rx_token.lastIndex
-      };
-    }
-  };
+        if (captives[6]) {
+            return {
+                id: captives[6],
+                line_nr,
+                column_nr,
+                column_to: rx_token.lastIndex
+            };
+        }
+    };
 });

@@ -1,1 +1,0 @@
-def def def def: ƒ (1+1)

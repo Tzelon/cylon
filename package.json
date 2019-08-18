@@ -4,13 +4,22 @@
   "description": "",
   "main": "big_float.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "jest --watch",
     "start": "tsc --sourceMap --outDir bin exec.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "@types/node": "^12.0.12"
+    "@babel/core": "^7.5.5",
+    "@babel/preset-env": "^7.5.5",
+    "@babel/preset-typescript": "^7.3.3",
+    "@types/expect": "^1.20.4",
+    "@types/jest": "^24.0.17",
+    "@types/node": "^12.0.12",
+    "babel-jest": "^24.9.0",
+    "jest": "^24.9.0",
+    "tiny-glob": "^0.2.6",
+    "typescript": "^3.5.3"
   }
 }
