@@ -1,1 +1,6 @@
-def this number: 123
+def Saying: module {
+    
+    def greeting: ƒ name {
+        return name
+    }
+}
