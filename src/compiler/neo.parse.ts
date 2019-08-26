@@ -68,7 +68,7 @@ const primordial = (function(ids) {
     'text?',
     'true'
 ]);
-
+const special_def_keywords = Object.freeze(['module']);
 // The generator function supplies a stream of token objects.
 // Three tokens are visible as 'prev_token', 'token', and 'next_token'.
 // The 'advance' function uses the generator to cycle thru all of
@@ -232,9 +232,9 @@ function argument_expression(precedence = 0, open = false) {
     // certain line breaks. If 'open' is true, we expect the token to
     // be at the indentation point.
 
-    let definition;
-    let left;
-    let the_token = token;
+  let definition;
+  let left;
+  let the_token = token;
 
     // Is the token a number literal or text literal?
 
@@ -763,8 +763,35 @@ prefix('ƒ', function function_literal(the_function) {
         at_indentation();
         advance('}');
     }
-    now_function = the_function.parent;
-    return the_function;
+  now_function = the_function.parent;
+  return the_function;
+});
+
+prefix('module', function module_literal(the_module) {
+  if (now_function.id !== '') {
+    return error(the_module, 'Do not make modules inside function.');
+  }
+
+  if (loop.length > 0) {
+    return error(the_module, 'Do not make functions in loops.');
+  }
+
+  // Creating new scope.
+  the_module.scope = Object.create(null);
+  the_module.parent = now_function;
+  // Changing scopes.
+  now_function = the_module;
+  
+  advance('{');
+  indent();
+  the_module.zeroth = statements();
+  outdent();
+  at_indentation();
+  advance('}');
+  
+  // Change scope back to parent
+  now_function = the_module.parent;
+  return the_module;
 });
 
 // The statements function parses statements, returing an array of statement tokens.
@@ -837,20 +864,52 @@ parse_statement.call = function(the_call) {
     return the_call;
 };
 
+// We can defein few other things that are not functions
+function special_def() {
+  if (!token.alphameric) return false;
+
+  let space_at = token.id.indexOf(' ');
+  const token_id = space_at > 0 ? token.id.slice(0, space_at) : token.id;
+  if (special_def_keywords.includes(token_id)) {
+    if (space_at > 0) {
+      prev_token = {
+        id: token_id,
+        alphameric: true,
+        line_nr: token.line_nr,
+        column_nr: token.column_nr,
+        column_to: token.column_nr + space_at,
+      };
+      token.id = token.id.slice(space_at + 1);
+      token.column_nr = token.column_nr + space_at + 1;
+    } else {
+      advance();
+    }
+    return true;
+  }
+
+  return false;
+}
+
 // The def statement registers read only variables.
 
 parse_statement.def = function(the_def) {
-    if (!token.alphameric) {
-        return error(token, 'expected a name.');
-    }
-    same_line();
-    the_def.zeroth = token;
-    register(token, true);
-    advance();
-    same_line();
-    advance(':');
+  if (!token.alphameric) {
+    return error(token, 'expected a name.');
+  }
+  same_line();
+  the_def.zeroth = token;
+  register(token, true);
+  advance();
+  same_line();
+  advance(':');
+  if (special_def()) {
+    // The token is a special def like 'module'.
+    const definition = parse_prefix[prev_token.id];
+    the_def.wunth = definition.parser(prev_token);
+  } else {
     the_def.wunth = expression();
-    return the_def;
+  }
+  return the_def;
 };
 
 // The fail statement is an exception machanisms.

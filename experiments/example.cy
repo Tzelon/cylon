@@ -1,6 +1,7 @@
 def Saying: module {
-    
-    def greeting: ƒ name {
-        return name
+    def geeting: ƒ your name {
+        return your name
     }
 }
+
+call Saying.geeting("tzelon")
