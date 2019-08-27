@@ -874,7 +874,7 @@ function special_def() {
     if (space_at > 0) {
       prev_token = {
         id: token_id,
-        alphameric: true,
+        alphameric: false,
         line_nr: token.line_nr,
         column_nr: token.column_nr,
         column_to: token.column_nr + space_at,
@@ -883,6 +883,7 @@ function special_def() {
       token.column_nr = token.column_nr + space_at + 1;
     } else {
       advance();
+      prev_token.alphameric = false;
     }
     return true;
   }
