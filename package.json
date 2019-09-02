@@ -5,7 +5,7 @@
   "main": "big_float.js",
   "scripts": {
     "test": "jest --watch",
-    "start": "tsc --sourceMap --outDir bin exec.ts"
+    "start": "tsc --watch --sourceMap --outDir bin exec.ts"
   },
   "keywords": [],
   "author": "",

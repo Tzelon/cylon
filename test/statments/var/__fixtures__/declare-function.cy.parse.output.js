@@ -1,0 +1,52 @@
+{ id: '',
+  scope:
+   [Object: null prototype] {
+     func:
+      { id: 'func',
+        alphameric: true,
+        line_nr: 0,
+        column_nr: 4,
+        column_to: 8,
+        readonly: true,
+        origin: [Circular] } },
+  zeroth:
+   [ { id: 'def',
+       alphameric: true,
+       line_nr: 0,
+       column_nr: 0,
+       column_to: 3,
+       class: 'statement',
+       zeroth:
+        { id: 'func',
+          alphameric: true,
+          line_nr: 0,
+          column_nr: 4,
+          column_to: 8,
+          readonly: true,
+          origin: [Circular] },
+       wunth:
+        { id: 'ƒ',
+          line_nr: 0,
+          column_nr: 10,
+          column_to: 11,
+          scope: [Object: null prototype] {},
+          parent: [Circular],
+          zeroth: [],
+          wunth:
+           [ { id: 'return',
+               alphameric: true,
+               line_nr: 1,
+               column_nr: 4,
+               column_to: 10,
+               class: 'statement',
+               zeroth:
+                { id: '(text)',
+                  readonly: true,
+                  text: 'hello world',
+                  line_nr: 1,
+                  column_nr: 11,
+                  column_to: 24 },
+               disrupt: true,
+               return: true },
+             disrupt: true,
+             return: true ] } } ] }

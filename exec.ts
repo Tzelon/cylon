@@ -1,23 +1,19 @@
-import parse from './neo.parse';
-import tokenize from './neo.tokenize';
-import codegen from './neo.codegen';
+import parse from './src/compiler/neo.parse';
+import tokenize from './src/compiler/neo.tokenize';
+import codegen from './src/compiler/neo.codegen';
 import * as fs from 'fs';
 import * as path from 'path';
 
-const cyProgram = fs.readFileSync(
-  path.resolve(__dirname, '../workshop/example.cy'),
-  'utf-8'
-);
+const cyProgram = fs.readFileSync(path.resolve(__dirname, '../experiments/example.cy'), 'utf-8');
 const tokenized = tokenize(cyProgram);
 const parsed = parse(tokenized);
-const jsProgram = codegen(parsed);
+if (parsed.id === '(error)') {
+    console.error(parsed);
+} else {
+    const jsProgram = codegen(parsed);
 
-fs.writeFileSync(
-  path.resolve(__dirname, '../workshop/example.js'),
-  jsProgram,
-  'utf-8'
-);
-
+    fs.writeFileSync(path.resolve(__dirname, '../experiments/example.js'), jsProgram, 'utf-8');
+}
 
 // const cyProgram = fs.readFileSync(
 //   path.resolve(__dirname, '../demo/reduce-reverse.cy'),

@@ -783,7 +783,7 @@ function statements() {
             break;
         }
         at_indentation();
-        prelude();
+        advance();
         let parser = parse_statement[prev_token.id];
         if (parser === undefined) {
             return error(prev_token, 'expected a statement');
@@ -1082,17 +1082,17 @@ export default function parse(token_generator) {
         advance();
         advance();
         let the_statements = [];
-        while (token.id.startsWith('import ')) {
-            at_indentation();
-            prelude();
-            the_statements.push(parse_import(prev_token));
-        }
+        // while (token.id.startsWith('import ')) {
+        //     at_indentation();
+        //     prelude();
+        //     the_statements.push(parse_import(prev_token));
+        // }
         the_statements = the_statements.concat(statements());
-        if (token.id.startsWith('export')) {
-            at_indentation();
-            prelude();
-            the_statements.push(parse_export(prev_token));
-        }
+        // if (token.id.startsWith('export')) {
+        //     at_indentation();
+        //     prelude();
+        //     the_statements.push(parse_export(prev_token));
+        // }
         if (token !== the_end) {
             return error(token, 'unexpected');
         }
