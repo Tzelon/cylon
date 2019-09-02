@@ -255,11 +255,15 @@ function statements(array) {
         .join('');
 }
 
-function block(array) {
+function block(array, wrap = true) {
     indent();
     const string = statements(array);
     outdent();
-    return '{' + string + begin() + '}';
+    if (wrap) {
+        return '{' + string + begin() + '}';
+    } else {
+        return string + begin();
+    }
 }
 
 statement_transform = $NEO.stone({
@@ -452,6 +456,21 @@ operator_transform = $NEO.stone({
             (Array.isArray(thing.wunth) ? block(thing.wunth) : '{return ' + expression(thing.wunth) + ';}') +
             ')'
         );
+    },
+    'module': function(thing) {
+        console.log("-----START MODULE------")
+        return (
+            '$NEO.stone(function () {' +
+                block(thing.zeroth, false) +
+                'return $NEO.stone({ ' +
+                thing.zeroth
+                    .map(function(statement) {
+                        return statement.zeroth.id
+                    })
+                    .join(', ') +
+                '})' +
+            '})()'
+        )
     }
 });
 
