@@ -768,7 +768,7 @@ prefix('ƒ', function function_literal(the_function) {
 });
 
 prefix('module', function module_literal(the_module) {
-  if (now_function.id !== '') {
+  if (now_function.id !== '' && now_function.id !== 'module') {
     return error(the_module, 'Do not make modules inside function.');
   }
 

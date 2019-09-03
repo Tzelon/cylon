@@ -1,16 +1,20 @@
-def my module: module {
+def MyModule: module {
+    def upper: ƒ {
+        return "hello"
+    }
+
+
+    def InnerModule: module {
+        def inner_greet: ƒ {
+            return "hello Inner"
+        }
+
+        def inner_greet2: ƒ {
+            return "hello222 Inner"
+        }
+    }
+
     def greet: ƒ {
-        return "hello world"
-    }
-
-    def greet2: ƒ {
-        return "hello world2"
-    }
-
-
-    def greet3: ƒ my name {
-        return "hello" ~ my name
+        return "hello"
     }
 }
-
-call my module.greet()

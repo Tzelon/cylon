@@ -9,13 +9,16 @@
             "type": "node",
             "request": "launch",
             "program": "${workspaceFolder}/exec.ts",
-            "outFiles": [ "${workspaceFolder}/bin/**/*.js" ]
+            "env": {
+                "NODE_DEBUG": "performance"
+            },
+            "outFiles": ["${workspaceFolder}/bin/**/*.js"]
         },
         {
             "name": "Launch JavaScript",
             "type": "node",
             "request": "launch",
-            "program": "${workspaceFolder}/experiments/example.js",
+            "program": "${workspaceFolder}/experiments/example.js"
         }
     ]
 }

@@ -13,6 +13,8 @@
 import big_float from '../runtime/numbers/big_float';
 import $NEO from '../runtime/neo.runtime';
 
+let now_module;
+
 function make_set(array, value = true) {
     const object = Object.create(null);
     array.forEach(function(element) {
@@ -205,6 +207,40 @@ function expression(thing) {
     return op(thing);
 }
 
+function create_module(module, moduleId) {
+    // Creating new scope.
+    const new_module = {
+        id: moduleId,
+        children: Object.create(null),
+        parent: now_module,
+        content: ''
+    };
+    now_module.children[moduleId] = new_module;
+    // Changing scopes.
+    now_module = new_module;
+    now_module.content = statements(module.zeroth);
+
+    now_module = new_module.parent;
+
+    // At this stage we know the parent and children of the now_module
+    // We can add export and import
+
+    new_module.content =
+        Object.keys(new_module.children).map(function(key) {
+            const { id } = new_module.children[key];
+            return `import ${id} from './${id}.js'` + begin();
+        }) +
+        new_module.content +
+        begin() +
+        'export default $NEO.stone({ ' +
+        module.zeroth
+            .map(function(statement) {
+                return statement.zeroth.id;
+            })
+            .join(', ') +
+        ' })';
+}
+
 function array_literal(array) {
     return (
         '[' +
@@ -255,15 +291,11 @@ function statements(array) {
         .join('');
 }
 
-function block(array, wrap = true) {
+function block(array) {
     indent();
     const string = statements(array);
     outdent();
-    if (wrap) {
-        return '{' + string + begin() + '}';
-    } else {
-        return string + begin();
-    }
+    return '{' + string + begin() + '}';
 }
 
 statement_transform = $NEO.stone({
@@ -274,6 +306,10 @@ statement_transform = $NEO.stone({
         return expression(thing.zeroth) + ';';
     },
     def: function(thing) {
+        if (thing.wunth.id === 'module') {
+            create_module(thing.wunth, thing.zeroth.id);
+            return '';
+        }
         return 'var ' + expression(thing.zeroth) + ' = ' + expression(thing.wunth) + ';';
     },
     export: function(thing) {
@@ -457,27 +493,35 @@ operator_transform = $NEO.stone({
             ')'
         );
     },
-    'module': function(thing) {
-        console.log("-----START MODULE------")
+    module: function(thing) {
+        console.log('-----START MODULE------');
         return (
             '$NEO.stone(function () {' +
-                block(thing.zeroth, false) +
-                'return $NEO.stone({ ' +
-                thing.zeroth
-                    .map(function(statement) {
-                        return statement.zeroth.id
-                    })
-                    .join(', ') +
-                '})' +
+            block(thing.zeroth, false) +
+            'return $NEO.stone({ ' +
+            thing.zeroth
+                .map(function(statement) {
+                    return statement.zeroth.id;
+                })
+                .join(', ') +
+            '})' +
             '})()'
-        )
+        );
     }
 });
 
-export default $NEO.stone(function codegen(tree) {
+const codegen = $NEO.stone(function codegen(tree) {
     front_matter = ['import $NEO from "./neo.runtime.js"\n'];
     indentation = 0;
     unique = Object.create(null);
+    const module = {
+        id: 'Main',
+        children: Object.create(null)
+    };
+    now_module = module;
     const bulk = statements(tree.zeroth);
-    return front_matter.join('') + bulk;
+    now_module.content = front_matter.join('') + bulk;
+    return now_module;
 });
+
+export default codegen;
