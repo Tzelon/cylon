@@ -493,21 +493,21 @@ operator_transform = $NEO.stone({
             ')'
         );
     },
-    module: function(thing) {
-        console.log('-----START MODULE------');
-        return (
-            '$NEO.stone(function () {' +
-            block(thing.zeroth, false) +
-            'return $NEO.stone({ ' +
-            thing.zeroth
-                .map(function(statement) {
-                    return statement.zeroth.id;
-                })
-                .join(', ') +
-            '})' +
-            '})()'
-        );
-    }
+    // module: function(thing) {
+    //     console.log('-----START MODULE------');
+    //     return (
+    //         '$NEO.stone(function () {' +
+    //         block(thing.zeroth) +
+    //         'return $NEO.stone({ ' +
+    //         thing.zeroth
+    //             .map(function(statement) {
+    //                 return statement.zeroth.id;
+    //             })
+    //             .join(', ') +
+    //         '})' +
+    //         '})()'
+    //     );
+    // }
 });
 
 const codegen = $NEO.stone(function codegen(tree) {

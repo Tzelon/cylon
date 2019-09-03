@@ -2,8 +2,7 @@ def MyModule: module {
     def upper: ƒ {
         return "hello"
     }
-
-
+    
     def InnerModule: module {
         def inner_greet: ƒ {
             return "hello Inner"

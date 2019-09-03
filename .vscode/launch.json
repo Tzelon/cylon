@@ -8,10 +8,8 @@
             "name": "Launch TypeScript",
             "type": "node",
             "request": "launch",
+            "runtimeVersion": "default",
             "program": "${workspaceFolder}/exec.ts",
-            "env": {
-                "NODE_DEBUG": "performance"
-            },
             "outFiles": ["${workspaceFolder}/bin/**/*.js"]
         },
         {
