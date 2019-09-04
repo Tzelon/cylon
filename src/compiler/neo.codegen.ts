@@ -12,6 +12,7 @@
 
 import big_float from '../runtime/numbers/big_float';
 import $NEO from '../runtime/neo.runtime';
+import * as sourceMap from 'source-map';
 
 let now_module;
 
@@ -286,9 +287,10 @@ function statements(array) {
     const padding = begin();
     return array
         .map(function(statement) {
-            return padding + statement_transform[statement.id](statement);
+            return statement_transform[statement.id](statement);
+            // return padding + statement_transform[statement.id](statement);
         })
-        .join('');
+        // .join('');
 }
 
 function block(array) {
@@ -310,7 +312,9 @@ statement_transform = $NEO.stone({
             create_module(thing.wunth, thing.zeroth.id);
             return '';
         }
-        return 'var ' + expression(thing.zeroth) + ' = ' + expression(thing.wunth) + ';';
+
+        return new sourceMap.SourceNode(thing.line_nr + 1, thing.column_nr, 'simple.cy', 'var ' + expression(thing.zeroth) + ' = ' + expression(thing.wunth) + ';')
+        // return 'var ' + expression(thing.zeroth) + ' = ' + expression(thing.wunth) + ';';
     },
     export: function(thing) {
         const exportation = expression(thing.zeroth);
@@ -519,8 +523,9 @@ const codegen = $NEO.stone(function codegen(tree) {
         children: Object.create(null)
     };
     now_module = module;
-    const bulk = statements(tree.zeroth);
-    now_module.content = front_matter.join('') + bulk;
+    const bulk = statements(tree);
+    now_module.content = bulk;
+    // now_module.content = front_matter.join('') + bulk;
     return now_module;
 });
 

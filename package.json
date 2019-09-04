@@ -20,6 +20,7 @@
     "babel-jest": "^24.9.0",
     "jest": "^24.9.0",
     "jest-file-snapshot": "^0.3.7",
+    "source-map": "^0.7.3",
     "tiny-glob": "^0.2.6",
     "typescript": "^3.5.3"
   }
