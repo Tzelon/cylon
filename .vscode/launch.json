@@ -5,6 +5,15 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Launch Cylon",
+            "type": "node",
+            "request": "launch",
+            "runtimeVersion": "default",
+            // "program": "${workspaceFolder}/experiments/cy-example/simple.cy",
+            "program": "${workspaceFolder}/dist/Main.js",
+            // "outFiles": ["${workspaceFolder}/dist/Main.js"]
+        },
+        {
             "name": "Launch TypeScript",
             "type": "node",
             "request": "launch",

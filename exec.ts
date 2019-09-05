@@ -62,13 +62,13 @@ function nest_in_module(module_to_nest, target_module, nesting) {
 }
 
 function writeFiles(mod) {
-    const mapFilename = mod.id + '.map';
-    const output = mod.content[0].toStringWithSourceMap({ file: mapFilename });
+    const mapFilename = mod.id + '.js.map';
+    const output = mod.content.toStringWithSourceMap({ file: mapFilename });
     //We must add the //# sourceMappingURL comment directive
     //so that the browser’s debugger knows where to find the source map.
     output.code += '\n//# sourceMappingURL=' + mapFilename;
     fs.writeFileSync(path.resolve(__dirname, `../dist/${mod.id}.js`), output.code, 'utf-8');
-    fs.writeFileSync(path.resolve(__dirname, `../dist/${mod.id}.map`), output.map, 'utf-8');
+    fs.writeFileSync(path.resolve(__dirname, `../dist/${mapFilename}`), output.map, 'utf-8');
     if (Object.keys(mod.children).length !== 0) {
         Object.keys(mod.children).forEach((inner_mod) => {
             writeFiles(mod.children[inner_mod]);
@@ -89,14 +89,15 @@ function readCyFiles(dirPath) {
             return true;
         })
         .map(function({ name }) {
-            return readFile(path.resolve(dirPath, name), 'utf-8').then(parse_code);
+            return readFile(path.resolve(dirPath, name), 'utf-8')
+                .then((content) => parse_code(content, name));
         });
 }
 
-function parse_code(content) {
+function parse_code(content, filename) {
     let hrstart = process.hrtime();
     const tokenized = tokenize(content);
-    const parsed = parse(tokenized);
+    const parsed = parse(tokenized, filename);
     let hrend = process.hrtime(hrstart);
     console.info('Execution time (hr): %ds %dms', hrend[0], hrend[1] / 1000000);
 

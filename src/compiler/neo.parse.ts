@@ -1128,13 +1128,14 @@ function parse_export(the_export) {
 // We export a single parse function. It takes a token generator and return a tree.
 // We do not need to make a constructor because pares does not retain any state between calls.
 
-export default function parse(token_generator) {
+export default function parse(token_generator, filename) {
     try {
         indentation = 0;
         loop = [];
         the_token_generator = token_generator;
         next_token = the_end;
         const program = {
+            filename,
             id: '',
             scope: Object.create(null)
         };

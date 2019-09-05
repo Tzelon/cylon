@@ -523,10 +523,21 @@ const codegen = $NEO.stone(function codegen(tree) {
         children: Object.create(null)
     };
     now_module = module;
-    const bulk = statements(tree);
-    now_module.content = bulk;
+    const code_source_map = statements(tree)
+    var result = new sourceMap.SourceNode(null, null, null, get_front_matter_source_map(front_matter));
+    result.add(code_source_map);
+    now_module.content = result;
     // now_module.content = front_matter.join('') + bulk;
     return now_module;
 });
+
+function get_front_matter_source_map(front_matter) {
+    const source_node = new sourceMap.SourceNode(null, null, null, "");
+    front_matter.forEach(line => {
+        source_node.add(line)
+    });
+
+    return source_node;
+}
 
 export default codegen;
