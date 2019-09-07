@@ -14,6 +14,7 @@
 */
 import generator, { Token } from './neo.tokenize';
 let the_error;
+let the_filename;
 
 function error(zeroth, wunth) {
     the_error = {
@@ -87,7 +88,7 @@ const the_end = Object.freeze({
     precedence: 0,
     column_nr: 0,
     column_to: 0,
-    line_nr: 0
+    line_nr: 1
 });
 
 // The advance function advences to the next token. Its companion, the prelude function,
@@ -156,6 +157,39 @@ function same_line() {
 
 function line_check(open: boolean) {
     return open ? at_indentation() : same_line();
+}
+
+/**
+ * we need to know if its a module defenition or just a variable name
+ * @returns if it is a module
+ */
+function tag_module() {
+    if (token.id === 'module' && next_token.id === '{') {
+        token.alphameric = false;
+        return true;
+    }
+
+    return false;
+}
+
+/**
+ *
+ * @param the_prev_token
+ * @returns if the name contained dots
+ */
+function advance_dots(the_token: Token) {
+    if (next_token.id !== '.') return false;
+
+    while (next_token.id === '.') {
+        same_line();
+        advance();
+        // @ts-ignore
+        the_token.column_to = next_token.column_to;
+        the_token.id += '.' + next_token.id;
+        advance();
+    }
+    token = the_token;
+    return true;
 }
 
 // The register function declares a new variable in a function's scope.
@@ -232,9 +266,9 @@ function argument_expression(precedence = 0, open = false) {
     // certain line breaks. If 'open' is true, we expect the token to
     // be at the indentation point.
 
-  let definition;
-  let left;
-  let the_token = token;
+    let definition;
+    let left;
+    let the_token = token;
 
     // Is the token a number literal or text literal?
 
@@ -763,35 +797,36 @@ prefix('ƒ', function function_literal(the_function) {
         at_indentation();
         advance('}');
     }
-  now_function = the_function.parent;
-  return the_function;
+    now_function = the_function.parent;
+    return the_function;
 });
 
 prefix('module', function module_literal(the_module) {
-  if (now_function.id !== '' && now_function.id !== 'module') {
-    return error(the_module, 'Do not make modules inside function.');
-  }
+    if (now_function.id !== '' && now_function.id !== 'module') {
+        return error(the_module, 'Do not make modules inside function.');
+    }
 
-  if (loop.length > 0) {
-    return error(the_module, 'Do not make functions in loops.');
-  }
+    if (loop.length > 0) {
+        return error(the_module, 'Do not make functions in loops.');
+    }
 
-  // Creating new scope.
-  the_module.scope = Object.create(null);
-  the_module.parent = now_function;
-  // Changing scopes.
-  now_function = the_module;
-  
-  advance('{');
-  indent();
-  the_module.zeroth = statements();
-  outdent();
-  at_indentation();
-  advance('}');
-  
-  // Change scope back to parent
-  now_function = the_module.parent;
-  return the_module;
+    the_module.filename = the_filename;
+    // Creating new scope.
+    the_module.scope = Object.create(null);
+    the_module.parent = now_function;
+    // Changing scopes.
+    now_function = the_module;
+
+    advance('{');
+    indent();
+    the_module.zeroth = statements();
+    outdent();
+    at_indentation();
+    advance('}');
+
+    // Change scope back to parent
+    now_function = the_module.parent;
+    return the_module;
 });
 
 // The statements function parses statements, returing an array of statement tokens.
@@ -801,12 +836,7 @@ function statements() {
     const statement_list = [];
     let the_statement;
     while (true) {
-        if (
-            token === the_end ||
-            token.column_nr < indentation ||
-            token.alphameric !== true ||
-            token.id.startsWith('export')
-        ) {
+        if (token === the_end || token.column_nr < indentation || token.alphameric !== true) {
             break;
         }
         at_indentation();
@@ -864,53 +894,26 @@ parse_statement.call = function(the_call) {
     return the_call;
 };
 
-// We can defein few other things that are not functions
-function special_def() {
-  if (!token.alphameric) return false;
-
-  let space_at = token.id.indexOf(' ');
-  const token_id = space_at > 0 ? token.id.slice(0, space_at) : token.id;
-  if (special_def_keywords.includes(token_id)) {
-    if (space_at > 0) {
-      prev_token = {
-        id: token_id,
-        alphameric: false,
-        line_nr: token.line_nr,
-        column_nr: token.column_nr,
-        column_to: token.column_nr + space_at,
-      };
-      token.id = token.id.slice(space_at + 1);
-      token.column_nr = token.column_nr + space_at + 1;
-    } else {
-      advance();
-      prev_token.alphameric = false;
-    }
-    return true;
-  }
-
-  return false;
-}
-
 // The def statement registers read only variables.
-
 parse_statement.def = function(the_def) {
-  if (!token.alphameric) {
-    return error(token, 'expected a name.');
-  }
-  same_line();
-  the_def.zeroth = token;
-  register(token, true);
-  advance();
-  same_line();
-  advance(':');
-  if (special_def()) {
-    // The token is a special def like 'module'.
-    const definition = parse_prefix[prev_token.id];
-    the_def.wunth = definition.parser(prev_token);
-  } else {
+    if (!token.alphameric) {
+        return error(token, 'expected a name.');
+    }
+    same_line();
+    const is_dotted_name = advance_dots(token);
+    the_def.zeroth = token;
+    register(token, true);
+    advance();
+    same_line();
+    advance(':');
+    const is_module = tag_module();
+
+    if (is_dotted_name && !is_module) {
+        return error(the_def.zeroth, 'only modules can have dots in ther name');
+    }
+
     the_def.wunth = expression();
-  }
-  return the_def;
+    return the_def;
 };
 
 // The fail statement is an exception machanisms.
@@ -1125,11 +1128,15 @@ function parse_export(the_export) {
     return the_export;
 }
 
-// We export a single parse function. It takes a token generator and return a tree.
-// We do not need to make a constructor because pares does not retain any state between calls.
-
-export default function parse(token_generator, filename) {
+/**
+ * We export a single parse function. It takes a token generator and return a tree.
+ * We do not need to make a constructor because pares does not retain any state between calls.
+ * @param token_generator
+ * @param filename - the original file name
+ */
+export default function parse(token_generator: ReturnType<typeof generator>, filename: string) {
     try {
+        the_filename = filename;
         indentation = 0;
         loop = [];
         the_token_generator = token_generator;
@@ -1137,7 +1144,8 @@ export default function parse(token_generator, filename) {
         const program = {
             filename,
             id: '',
-            scope: Object.create(null)
+            scope: Object.create(null),
+            zeroth: null
         };
         now_function = program;
         advance();
@@ -1157,7 +1165,6 @@ export default function parse(token_generator, filename) {
         if (token !== the_end) {
             return error(token, 'unexpected');
         }
-        //@ts-ignore
         program.zeroth = the_statements;
         return program;
     } catch (ignore) {

@@ -5,7 +5,7 @@ import tokenizer from '../src/compiler/neo.tokenize';
 import codegen from '../src/compiler/neo.codegen';
 
 function compile(input): { parse: any; code: string } {
-    const parse = parser(tokenizer(input));
+    const parse = parser(tokenizer(input), '');
     const code = codegen(parse);
 
     return {

@@ -12,9 +12,19 @@
 
 import big_float from '../runtime/numbers/big_float';
 import $NEO from '../runtime/neo.runtime';
-import * as sourceMap from 'source-map';
+import { SourceNode } from 'source-map';
 
 let now_module;
+let modules = [];
+let filename;
+
+function source_node(line_nr: number, column_nr: number, chunks?: string | SourceNode | (string | SourceNode)[]) {
+    return new SourceNode(line_nr + 1, column_nr, filename, chunks);
+}
+
+function is_last(array: any[], index) {
+    return index + 1 === array.length;
+}
 
 function make_set(array, value = true) {
     const object = Object.create(null);
@@ -148,20 +158,23 @@ function begin() {
     return '\n' + ' '.repeat(indentation);
 }
 
-let front_matter;
+function is_module(thing) {
+    return thing.wunth.id === 'module' && !thing.wunth.alphameric;
+}
+
 let operator_transform;
 let statement_transform;
 let unique;
 
-const rx_space_question = /[\u0020?]/g;
+const rx_exclamation_question = /[\\!?]/g;
 
 function mangle(name) {
-    // JavaScript does not allow space or '?' in identifiers, so we
+    // JavaScript does not allow ! or '?' in identifiers, so we
     // replace them with '_'. We give reserved words a '$' prefix.
 
-    //  So 'what me worry?' becomes 'what_me_worry_', and 'class' becomes '$class'.
+    //  So 'what_me_worry?' becomes 'what_me_worry_', and 'class' becomes '$class'.
 
-    return reserved[name] === true ? '$' + name : name.replace(rx_space_question, '_');
+    return reserved[name] === true ? '$' + name : name.replace(rx_exclamation_question, '_');
 }
 
 const rx_minus_point = /[\-.]/g;
@@ -177,7 +190,7 @@ function numgle(number) {
     const name = '$' + text.replace(rx_minus_point, '_');
     if (unique[name] !== true) {
         unique[name] = true;
-        front_matter.push('const ' + name + ' = $NEO.number("' + text + '");\n');
+        now_module.front_matter.push('const ' + name + ' = $NEO.number("' + text + '");\n');
     }
     return name;
 }
@@ -197,61 +210,61 @@ function op(thing) {
 
 function expression(thing) {
     if (thing.id === '(number)') {
-        return numgle(thing);
+        // return numgle(thing);
+        return source_node(thing.line_nr, thing.column_nr, numgle(thing));
     }
     if (thing.id === '(text)') {
-        return JSON.stringify(thing.text);
+        // return JSON.stringify(thing.text);
+        return source_node(thing.line_nr, thing.column_nr, JSON.stringify(thing.text));
     }
     if (thing.alphameric) {
-        return thing.origin === undefined ? primordial[thing.id] : mangle(thing.id);
+        // return thing.origin === undefined ? primordial[thing.id] : mangle(thing.id);
+        return source_node(
+            thing.line_nr,
+            thing.column_nr,
+            thing.origin === undefined ? primordial[thing.id] : mangle(thing.id)
+        );
     }
     return op(thing);
 }
 
-function create_module(module, moduleId) {
-    // Creating new scope.
-    const new_module = {
-        id: moduleId,
-        children: Object.create(null),
-        parent: now_module,
-        content: ''
-    };
-    now_module.children[moduleId] = new_module;
-    // Changing scopes.
-    now_module = new_module;
-    now_module.content = statements(module.zeroth);
+function create_module(the_module) {
+    // We can have nested modules.
+    // If we do have we put them in the children array
 
-    now_module = new_module.parent;
+    // children - a list of children modules
+    // parent - the parent module
 
-    // At this stage we know the parent and children of the now_module
-    // We can add export and import
+    const module_source_map = source_node(the_module.line_nr, the_module.column_nr, statements(the_module.zeroth));
 
-    new_module.content =
-        Object.keys(new_module.children).map(function(key) {
-            const { id } = new_module.children[key];
-            return `import ${id} from './${id}.js'` + begin();
-        }) +
-        new_module.content +
-        begin() +
-        'export default $NEO.stone({ ' +
-        module.zeroth
-            .map(function(statement) {
-                return statement.zeroth.id;
-            })
-            .join(', ') +
-        ' })';
+    var result = source_node(null, null, now_module.front_matter);
+    result.add(module_source_map);
+
+    modules.push(result);
 }
 
 function array_literal(array) {
-    return (
-        '[' +
-        array
-            .map(function(element) {
-                return Array.isArray(element) ? array_literal(element) : expression(element);
-            })
-            .join(', ') +
+    return source_node(array.line_nr, array.column_nr, [
+        '[',
+        array.zeroth.map(function(element, index) {
+            const node = Array.isArray(element) ? array_literal(element) : expression(element);
+            if (!is_last(index, array.zeroth)) {
+                node.add(', ');
+            }
+            return node;
+        }),
         ']'
-    );
+    ]);
+
+    // return (
+    //     '[' +
+    //     array
+    //         .map(function(element) {
+    //             return Array.isArray(element) ? array_literal(element) : expression(element);
+    //         })
+    //         .join(', ') +
+    //     ']'
+    // );
 }
 
 function record_literal(array) {
@@ -283,21 +296,30 @@ function assert_boolean(thing) {
         : '$NEO.assert_boolean(' + string + ')';
 }
 
+function module_statement(statement) {
+    if (statement.id !== 'def' || !is_module(statement)) {
+        throw 'codegen must get array of modules';
+    }
+    create_module(statement.wunth);
+}
+
 function statements(array) {
     const padding = begin();
-    return array
-        .map(function(statement) {
-            return statement_transform[statement.id](statement);
-            // return padding + statement_transform[statement.id](statement);
-        })
-        // .join('');
+    return array.map(function(statement, index) {
+        let node = statement_transform[statement.id](statement);
+        node.prepend(padding);
+        return node;
+        // return padding + statement_transform[statement.id](statement);
+    });
+    // .join('');
 }
 
 function block(array) {
     indent();
     const string = statements(array);
     outdent();
-    return '{' + string + begin() + '}';
+    return source_node(null, null, ['{', string, begin(), '}']);
+    // return '{' + string + begin() + '}';
 }
 
 statement_transform = $NEO.stone({
@@ -308,12 +330,34 @@ statement_transform = $NEO.stone({
         return expression(thing.zeroth) + ';';
     },
     def: function(thing) {
-        if (thing.wunth.id === 'module') {
-            create_module(thing.wunth, thing.zeroth.id);
+        if (is_module(thing)) {
+            // Here we are sure we hit a nested module
+            now_module.children.push(thing.zeroth.id);
+
+            const new_module = {
+                id: thing.zeroth.id,
+                children: [],
+                parent_path: now_module.id,
+                parent: now_module,
+                content: '',
+                front_matter: ['import $NEO from "./neo.runtime.js"\n']
+            };
+            // chaning working module
+            now_module = new_module;
+
+            create_module(thing.wunth);
+
+            // chaning back working module
+            now_module = new_module.parent;
             return '';
         }
-
-        return new sourceMap.SourceNode(thing.line_nr + 1, thing.column_nr, 'simple.cy', 'var ' + expression(thing.zeroth) + ' = ' + expression(thing.wunth) + ';')
+        return source_node(thing.line_nr, thing.column_nr, [
+            'var ',
+            expression(thing.zeroth),
+            ' = ',
+            expression(thing.wunth),
+            ';'
+        ]);
         // return 'var ' + expression(thing.zeroth) + ' = ' + expression(thing.wunth) + ';';
     },
     export: function(thing) {
@@ -374,7 +418,8 @@ statement_transform = $NEO.stone({
         return 'while (true) ' + block(thing.zeroth);
     },
     return: function(thing) {
-        return 'return ' + expression(thing.zeroth) + ';';
+        return source_node(thing.line_nr, thing.column_nr, ['return ', expression(thing.zeroth), ';']);
+        // return 'return ' + expression(thing.zeroth) + ';';
     },
     var: function(thing) {
         return (
@@ -463,7 +508,8 @@ operator_transform = $NEO.stone({
     },
     '[': function(thing) {
         if (thing.wunth === undefined) {
-            return array_literal(thing.zeroth);
+            // return array_literal(thing.zeroth);
+            return array_literal(thing);
         }
         return '$NEO.get(' + expression(thing.zeroth) + ', ' + expression(thing.wunth) + ')';
     },
@@ -479,65 +525,70 @@ operator_transform = $NEO.stone({
         if (typeof thing.zeroth === 'string') {
             return functino[thing.zeroth];
         }
-        return (
-            '$NEO.stone(function (' +
-            thing.zeroth
-                .map(function(param) {
-                    if (param.id === '...') {
-                        return '...' + mangle(param.zeroth.id);
-                    }
-                    if (param.id === '|') {
-                        return mangle(param.zeroth.id) + ' = ' + expression(param.wunth);
-                    }
-                    return mangle(param.id);
-                })
-                .join(', ') +
-            ') ' +
-            (Array.isArray(thing.wunth) ? block(thing.wunth) : '{return ' + expression(thing.wunth) + ';}') +
+
+        const node = source_node(thing.line_nr, thing.column_nr, [
+            '$NEO.stone(function (',
+            thing.zeroth.map(function(param, index) {
+                let node;
+                if (param.id === '...') {
+                    node = source_node(param.line_nr, param.column_nr, '...' + mangle(param.zeroth.id));
+                }
+                if (param.id === '|') {
+                    node = source_node(param.line_nr, param.column_nr, [
+                        mangle(param.zeroth.id),
+                        ' = ',
+                        expression(param.wunth)
+                    ]);
+                }
+                node = source_node(param.line_nr, param.column_nr, mangle(param.id));
+                if (!is_last(index, thing.zeroth)) {
+                    node.add(', ');
+                }
+                return node;
+            }),
+            ') ',
+            Array.isArray(thing.wunth)
+                ? block(thing.wunth)
+                : source_node(thing.line_nr, thing.column_nr, ['{return ', expression(thing.wunth), ';}']),
             ')'
-        );
-    },
-    // module: function(thing) {
-    //     console.log('-----START MODULE------');
-    //     return (
-    //         '$NEO.stone(function () {' +
-    //         block(thing.zeroth) +
-    //         'return $NEO.stone({ ' +
-    //         thing.zeroth
-    //             .map(function(statement) {
-    //                 return statement.zeroth.id;
-    //             })
-    //             .join(', ') +
-    //         '})' +
-    //         '})()'
-    //     );
-    // }
+        ]);
+
+        return node;
+
+        // return (
+        //     '$NEO.stone(function (' +
+        //     thing.zeroth
+        //         .map(function(param) {
+        //             if (param.id === '...') {
+        //                 return '...' + mangle(param.zeroth.id);
+        //             }
+        //             if (param.id === '|') {
+        //                 return mangle(param.zeroth.id) + ' = ' + expression(param.wunth);
+        //             }
+        //             return mangle(param.id);
+        //         })
+        //         .join(', ') +
+        //     ') ' +
+        //     (Array.isArray(thing.wunth) ? block(thing.wunth) : '{return ' + expression(thing.wunth) + ';}') +
+        //     ')'
+        // );
+    }
 });
 
-const codegen = $NEO.stone(function codegen(tree) {
-    front_matter = ['import $NEO from "./neo.runtime.js"\n'];
+const codegen = $NEO.stone(function codegen(the_module) {
+    filename = the_module.wunth.filename;
     indentation = 0;
     unique = Object.create(null);
-    const module = {
-        id: 'Main',
-        children: Object.create(null)
+    now_module = {
+        id: the_module.zeroth.id,
+        children: [],
+        parent_path: '',
+        parent: null,
+        content: '',
+        front_matter: ['import $NEO from "./neo.runtime.js"\n']
     };
-    now_module = module;
-    const code_source_map = statements(tree)
-    var result = new sourceMap.SourceNode(null, null, null, get_front_matter_source_map(front_matter));
-    result.add(code_source_map);
-    now_module.content = result;
-    // now_module.content = front_matter.join('') + bulk;
-    return now_module;
+    module_statement(the_module);
+    return modules;
 });
-
-function get_front_matter_source_map(front_matter) {
-    const source_node = new sourceMap.SourceNode(null, null, null, "");
-    front_matter.forEach(line => {
-        source_node.add(line)
-    });
-
-    return source_node;
-}
 
 export default codegen;

@@ -14,7 +14,15 @@
             // "outFiles": ["${workspaceFolder}/dist/Main.js"]
         },
         {
-            "name": "Launch TypeScript",
+            "name": "Launch Build",
+            "type": "node",
+            "request": "launch",
+            "runtimeVersion": "default",
+            "program": "${workspaceFolder}/scripts/build/index.ts",
+            "outFiles": ["${workspaceFolder}/bin/**/*.js"]
+        },
+        {
+            "name": "Launch Exec",
             "type": "node",
             "request": "launch",
             "runtimeVersion": "default",

@@ -5,7 +5,7 @@
   "main": "big_float.js",
   "scripts": {
     "test": "jest --watch",
-    "start": "tsc -w --sourceMap --outDir bin exec.ts"
+    "start": "tsc -w --sourceMap --outDir bin"
   },
   "keywords": [],
   "author": "",
@@ -23,5 +23,9 @@
     "source-map": "^0.7.3",
     "tiny-glob": "^0.2.6",
     "typescript": "^3.5.3"
+  },
+  "dependencies": {
+    "fast-glob": "^3.0.4",
+    "worker-threads-pool": "^2.0.0"
   }
 }

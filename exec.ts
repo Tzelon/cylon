@@ -1,17 +1,16 @@
 import parse from './src/compiler/neo.parse';
 import tokenize from './src/compiler/neo.tokenize';
 import codegen from './src/compiler/neo.codegen';
-import * as util from 'util';
-import * as fs from 'fs';
-import * as path from 'path';
-import * as sourceMap from 'source-map';
+import util from 'util';
+import fs from 'fs';
+import path from 'path';
 
 const readFile = util.promisify(fs.readFile);
 
 Promise.all(readCyFiles(path.resolve(process.cwd(), './experiments/cy-example'))).then((programs) => {
     const modules = resolveModules(programs);
-    const jscode = codegen(modules);
-    writeFiles(jscode);
+    const jscode = codegen(modules[0]);
+    writeFiles(jscode[0]);
 });
 
 function resolveModules(programs) {
@@ -19,33 +18,7 @@ function resolveModules(programs) {
         return program.zeroth;
     });
 
-    let nested_modules = {};
-
-    modules.forEach((statement, index, modules) => {
-        if (statement.id === 'def' && statement.wunth.id === 'module') {
-            const splited_module_name = statement.zeroth.id.split('_');
-            if (splited_module_name.length > 1) {
-                // changing the name of the module
-                statement.zeroth.id = splited_module_name[splited_module_name.length - 1];
-                nested_modules[splited_module_name[0]] = {
-                    statement,
-                    nesting: splited_module_name.slice(1, -1)
-                };
-                delete modules[index];
-            }
-        }
-    });
-
-    modules.forEach((statement) => {
-        if (statement === undefined) return;
-        const module_name = statement.zeroth.id;
-        const nested_module = nested_modules[module_name];
-
-        if (nested_module === undefined) return;
-        nest_in_module(nested_module.statement, statement, nested_module.nesting);
-    });
-
-    return modules.filter((mod) => !!mod);
+    return modules;
 }
 
 //TODO: handle the scope of the module! we must passed it to the new location.
@@ -61,19 +34,19 @@ function nest_in_module(module_to_nest, target_module, nesting) {
     });
 }
 
-function writeFiles(mod) {
-    const mapFilename = mod.id + '.js.map';
-    const output = mod.content.toStringWithSourceMap({ file: mapFilename });
+function writeFiles(mod, module_name = 'Main') {
+    const mapFilename = module_name + '.js.map';
+    const output = mod.toStringWithSourceMap({ file: mapFilename });
     //We must add the //# sourceMappingURL comment directive
     //so that the browser’s debugger knows where to find the source map.
     output.code += '\n//# sourceMappingURL=' + mapFilename;
-    fs.writeFileSync(path.resolve(__dirname, `../dist/${mod.id}.js`), output.code, 'utf-8');
+    fs.writeFileSync(path.resolve(__dirname, `../dist/${module_name}.js`), output.code, 'utf-8');
     fs.writeFileSync(path.resolve(__dirname, `../dist/${mapFilename}`), output.map, 'utf-8');
-    if (Object.keys(mod.children).length !== 0) {
-        Object.keys(mod.children).forEach((inner_mod) => {
-            writeFiles(mod.children[inner_mod]);
-        });
-    }
+    // if (Object.keys(mod.children).length !== 0) {
+    //     Object.keys(mod.children).forEach((inner_mod) => {
+    //         writeFiles(mod.children[inner_mod]);
+    //     });
+    // }
 }
 
 function readCyFiles(dirPath) {
