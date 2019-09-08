@@ -3,5 +3,7 @@ def Main: module {
         def val: "tzelon"
         return "Hello World"
     }
+
+    call num(1, 2)
 }
 

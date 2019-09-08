@@ -327,7 +327,7 @@ statement_transform = $NEO.stone({
         return 'break;';
     },
     call: function(thing) {
-        return expression(thing.zeroth) + ';';
+        return source_node(thing.line_nr, thing.column_nr, [expression(thing.zeroth), ';']);
     },
     def: function(thing) {
         if (is_module(thing)) {

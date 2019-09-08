@@ -819,7 +819,7 @@ prefix('module', function module_literal(the_module) {
 
     advance('{');
     indent();
-    the_module.zeroth = statements();
+     the_module.zeroth = statements();
     outdent();
     at_indentation();
     advance('}');
