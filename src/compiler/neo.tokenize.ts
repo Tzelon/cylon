@@ -34,7 +34,7 @@ interface CommentToken extends BaseToken {
     comment: string;
 }
 
-interface NameToken extends BaseToken {
+export interface NameToken extends BaseToken {
     alphameric: boolean;
     column_to: number;
 }
