@@ -9,101 +9,93 @@ import {
   LetStatement,
   LoopStatement,
 } from '../NodesTypes';
+import { Parser } from '../neo.parse';
+
 import {
-  is_in_loop,
-  set_top_loop_status,
-  add_loop,
-  pop_loop,
-  set_infinite_loops_to_return,
-  register,
-  lookup,
-  error,
-  is_in_function,
-} from '../globals';
-import {
-  is_line_break,
-  same_line,
-  advance,
-  advance_dots,
-  tag_module,
-  indent,
-  outdent,
-  get_tokens,
-  at_indentation,
-  get_indentation,
-  the_end,
+  expression,
   parse_dot,
   parse_subscript,
   parse_invocation,
-} from '../neo.parse';
+} from './expressions';
+
+interface ParseStatemets {
+  break: (the_break, parser: Parser) => BreakStatement;
+  call: (the_call, parser: Parser) => CallStatement;
+  def: (the_def, parser: Parser) => DefStatement;
+  fail: (the_fail, parser: Parser) => FailStatement;
+  if: (the_if, parser: Parser) => IfStatement;
+  let: (the_let, parser: Parser) => LetStatement;
+  loop: (the_loop, parser: Parser) => LoopStatement;
+  return: (the_return, parser: Parser) => ReturnStatement;
+  var: (the_var, parser: Parser) => VarStatement;
+}
 
 // The 'parse_statement' contain functions that do the specialized parsing.
 // We are using 'Object.create(null)' to make them because we do not want any of
 // the debris from 'Object.prototype' getting dredged up here.
-const parse_statement = Object.create(null);
+const parse_statement: ParseStatemets = Object.create(null);
 
 // The 'disrupt' property marks statements and statement lists that break or return.
 // The 'return' property marks statements and statement lists that return.
 
 // The break statment breaks out of a loop. The parser is passed the 'break' token.
 // It sets the exit condition of the current loop.
-parse_statement.break = function(the_break): BreakStatement {
+parse_statement.break = function(the_break, parser) {
   const breakStatement = the_break as BreakStatement;
-  breakStatement.syntaxKind = 'BreakStatment';
+  breakStatement.syntaxKind = 'BreakStatement';
 
-  if (is_in_loop()) {
-    return error(the_break, "'break' wants to be in a loop.");
+  if (!parser.is_in_loop()) {
+    return parser.error(the_break, "'break' wants to be in a loop.");
   }
-  set_top_loop_status('break');
+  parser.set_top_loop_status('break');
   breakStatement.disrupt = true;
   return breakStatement;
 };
 
 // The call statement calls a function and ignores the return value. This is to identify
 // calls that are happening solely for their side effects.
-parse_statement.call = function(the_call) {
+parse_statement.call = function(the_call, parser) {
   const callStatement = the_call as CallStatement;
-  callStatement.syntaxKind = 'CallStatment';
+  callStatement.syntaxKind = 'CallStatement';
 
-  callStatement.zeroth = expression();
+  callStatement.zeroth = expression(parser);
   if (callStatement.zeroth.id !== '(') {
-    return error(callStatement, 'expected a function invocation');
+    return parser.error(callStatement, 'expected a function invocation');
   }
 
   return callStatement;
 };
 
 // The def statement registers read only variables.
-parse_statement.def = function(the_def) {
+parse_statement.def = function(the_def, parser) {
   const defStatement = the_def as DefStatement;
   defStatement.syntaxKind = 'DefStatement';
 
-  const { token } = get_tokens();
-  if (!token.alphameric) {
-    return error(token, 'expected a name.');
+  if (!parser.token.alphameric) {
+    return parser.error(parser.token, 'expected a name.');
   }
-  same_line();
-  const is_dotted_name = advance_dots(token);
-  defStatement.zeroth = token;
-  register(token, true);
-  advance();
-  same_line();
-  advance(':');
-  const is_module = tag_module();
+  parser.same_line();
+  const is_dotted_name = parser.advance_dots(parser.token);
+  defStatement.zeroth = parser.token;
+  parser.register(parser.token, true);
+  parser.advance();
+  parser.same_line();
+  parser.advance(':');
+  const is_module = parser.tag_module();
 
   if (is_dotted_name && !is_module) {
-    return error(
+    return parser.error(
       defStatement.zeroth,
       'only modules can have dots in ther name'
     );
   }
 
-  defStatement.wunth = expression();
+  defStatement.wunth = expression(parser);
   return defStatement;
 };
 
 // The fail statement is an exception machanisms.
-parse_statement.fail = function(the_fail) {
+parse_statement.fail = function(the_fail, _parser) {
   const failStatement = the_fail as FailStatement;
   failStatement.syntaxKind = 'FailStatement';
 
@@ -113,29 +105,28 @@ parse_statement.fail = function(the_fail) {
 
 // The if statement has an optional else clause or else if statement. if both branches distrupt or return,
 // then the if statement itself distrupts or return.
-parse_statement.if = function if_statement(the_if) {
+parse_statement.if = function if_statement(the_if, parser) {
   const ifStatement = the_if as IfStatement;
   ifStatement.syntaxKind = 'IfStatement';
 
-  const { token, prev_token } = get_tokens();
-  ifStatement.zeroth = expression();
-  indent();
-  ifStatement.wunth = statements();
-  outdent();
-  if (at_indentation()) {
-    if (token.id === 'else') {
-      advance('else');
-      indent();
-      ifStatement.twoth = statements();
-      outdent();
+  ifStatement.zeroth = expression(parser);
+  parser.indent();
+  ifStatement.wunth = statements(parser);
+  parser.outdent();
+  if (parser.at_indentation()) {
+    if (parser.token.id === 'else') {
+      parser.advance('else');
+      parser.indent();
+      ifStatement.twoth = statements(parser);
+      parser.outdent();
       ifStatement.disrupt =
         ifStatement.wunth.disrupt && ifStatement.twoth.disrupt;
       ifStatement.return = ifStatement.wunth.return && ifStatement.twoth.return;
-    } else if (token.id.startsWith('else if ')) {
+    } else if (parser.token.id.startsWith('else if ')) {
       // Not sure if I need those but maybe.. because of the space between the else if
       //   prelude();
       //   prelude();
-      ifStatement.twoth = if_statement(prev_token);
+      ifStatement.twoth = if_statement(parser.prev_token, parser);
       ifStatement.disrupt =
         ifStatement.wunth.disrupt && ifStatement.twoth.disrupt;
       ifStatement.return = ifStatement.wunth.return && ifStatement.twoth.return;
@@ -147,84 +138,83 @@ parse_statement.if = function if_statement(the_if) {
 // The let statement is assignment statement. The left side is not an ordinary expression.
 // It is a more limited thing called 'lvalue'. An lvalue can be a variable (var not def), or an expression
 // that finds a field or element.
-parse_statement.let = function(the_let) {
+parse_statement.let = function(the_let, parser) {
   const letStatement = the_let as LetStatement;
   letStatement.syntaxKind = 'LetStatement';
 
-  const { token, prev_token } = get_tokens();
   // The 'let' statement is the only place where mutation is allowed.
 
   // The next token must be a name.
 
-  same_line();
-  const name = token;
-  advance();
+  parser.same_line();
+  const name = parser.token;
+  parser.advance();
   const id = name.id;
-  let left = lookup(id);
+  let left = parser.lookup(id);
   if (left === undefined) {
-    return error(name, 'expected a variable');
+    return parser.error(name, 'expected a variable');
   }
   let readonly = left.readonly;
 
   // Now we consider the suffix operators ' []  .  [ ' and ' {'.
 
   while (true) {
-    if (token === the_end) {
+    if (parser.token === Parser.the_end) {
       break;
     }
-    same_line();
+    parser.same_line();
 
     // A '[]' in this position indicates an array append operation.
 
-    if (token.id === '[]') {
+    if (parser.token.id === '[]') {
       readonly = false;
-      token.zeroth = left;
-      left = token;
-      same_line();
-      advance('[]');
+      parser.token.zeroth = left;
+      left = parser.token;
+      parser.same_line();
+      parser.advance('[]');
       break;
     }
-    if (token.id === '.') {
+    if (parser.token.id === '.') {
       readonly = false;
-      advance('.');
-      left = parse_dot(left, prev_token);
-    } else if (token.id === '[') {
+      parser.advance('.');
+      left = parse_dot(parser, left, parser.prev_token);
+    } else if (parser.token.id === '[') {
       readonly = false;
-      advance('[');
-      left = parse_subscript(left, prev_token);
-    } else if (token.id === '(') {
+      parser.advance('[');
+      left = parse_subscript(parser, left, parser.prev_token);
+    } else if (parser.token.id === '(') {
       readonly = false;
-      advance('(');
-      left = parse_invocation(left, prev_token);
+      parser.advance('(');
+      left = parse_invocation(parser, left, parser.prev_token);
       //@ts-ignore
       if (token.id === ':') {
-        return error(left, 'assignment to the result of a function');
+        return parser.error(left, 'assignment to the result of a function');
       }
     } else {
       break;
     }
   }
-  advance(':');
+  parser.advance(':');
   if (readonly) {
-    return error(left, 'assignment to a constant');
+    return parser.error(left, 'assignment to a constant');
   }
   letStatement.zeroth = left;
-  letStatement.wunth = expression();
+  letStatement.wunth = expression(parser);
 
   // A '[]' in this position indicates an array pop operation.
 
   if (
-    token.id === '[]' &&
+    parser.token.id === '[]' &&
     left.id !== '[]' &&
     (letStatement.wunth.alphameric === true ||
       letStatement.wunth.id === '.' ||
       letStatement.wunth.id === '[' ||
       letStatement.wunth.id === '(')
   ) {
-    token.zeroth = letStatement.wunth;
-    letStatement.wunth = token;
-    same_line();
-    advance('[]');
+    parser.token.zeroth = letStatement.wunth;
+    letStatement.wunth = parser.token;
+    parser.same_line();
+    parser.advance('[]');
   }
   return letStatement;
 };
@@ -233,42 +223,40 @@ parse_statement.let = function(the_let) {
 // The entries in the stack are the exit conditions of the loops. If there is no explicit exit,
 // a stack's status is "infinite". If the only exit is a 'return' statement, its status is "return".
 // If the loop exits with a 'break' statement, its status is "break". For this purpose, 'fail' is not an explicit exit condition.
-parse_statement.loop = function(the_loop) {
+parse_statement.loop = function(the_loop, parser) {
   const loopStatement = the_loop as LoopStatement;
   loopStatement.syntaxKind = 'LoopStatement';
 
-  indent();
-  add_loop('infinite');
-  loopStatement.zeroth = statements();
-  const exit = pop_loop();
+  parser.indent();
+  parser.loop.push('infinite');
+  loopStatement.zeroth = statements(parser);
+  const exit = parser.loop.pop();
   if (exit === 'infinite') {
-    return error(loopStatement, "A loop wants a 'break'.");
+    return parser.error(loopStatement, "A loop wants a 'break'.");
   }
   if (exit === 'return') {
     loopStatement.disrupt = true;
     loopStatement.return = true;
   }
-  outdent();
+  parser.outdent();
   return loopStatement;
 };
 
 // The return statement changes the status of "infinite" loops to "return".
-parse_statement.return = function(the_return) {
+parse_statement.return = function(the_return, parser) {
   const returnStatement = the_return as ReturnStatement;
   returnStatement.syntaxKind = 'ReturnStatement';
-
-  const { token } = get_tokens();
   //   try {
-  if (is_in_function()) {
-    return error(returnStatement, "'return' wants to be in a function.");
+  if (!parser.is_in_function()) {
+    return parser.error(returnStatement, "'return' wants to be in a function.");
   }
-  set_infinite_loops_to_return();
-  if (is_line_break()) {
-    return error(returnStatement, "'return' wants a return value.");
+  parser.set_infinite_loops_to_return();
+  if (parser.is_line_break()) {
+    return parser.error(returnStatement, "'return' wants a return value.");
   }
-  returnStatement.zeroth = expression();
-  if (token.id === '}') {
-    return error(returnStatement, "Misplaced 'return'.");
+  returnStatement.zeroth = expression(parser);
+  if (parser.token.id === '}') {
+    return parser.error(returnStatement, "Misplaced 'return'.");
   }
   returnStatement.disrupt = true;
   returnStatement.return = true;
@@ -280,58 +268,56 @@ parse_statement.return = function(the_return) {
 
 // The var statement declares a variable that can be assigned to with the let statement.
 // If the variable is not explicitly initialized, its initial value is null.
-parse_statement.var = function(the_var) {
+parse_statement.var = function(the_var, parser) {
   const varStatement = the_var as VarStatement;
   varStatement.syntaxKind = 'VarStatement';
 
-  const { token } = get_tokens();
-  if (!token.alphameric) {
-    return error(token, 'expected a name.');
+  if (!parser.token.alphameric) {
+    return parser.error(parser.token, 'expected a name.');
   }
-  same_line();
-  varStatement.zeroth = token;
-  register(token);
-  advance();
-  if (token.id === ':') {
-    same_line();
-    advance(':');
-    varStatement.wunth = expression();
+  parser.same_line();
+  varStatement.zeroth = parser.token;
+  parser.register(parser.token);
+  parser.advance();
+  if (parser.token.id === ':') {
+    parser.same_line();
+    parser.advance(':');
+    varStatement.wunth = expression(parser);
   }
   return varStatement;
 };
 
 // The statements function parses statements, returing an array of statement tokens.
-export function statements() {
-  const { token, prev_token } = get_tokens();
+export function statements(the_parser: Parser) {
   const statement_list = [];
   let the_statement;
   while (true) {
     if (
-      token === the_end ||
-      token.column_nr < get_indentation() ||
-      token.alphameric !== true
+      the_parser.token === Parser.the_end ||
+      the_parser.token.column_nr < the_parser.indentation ||
+      the_parser.token.alphameric !== true
     ) {
       break;
     }
-    at_indentation();
-    advance();
-    let parser = parse_statement[prev_token.id];
+    the_parser.at_indentation();
+    the_parser.advance();
+    let parser = parse_statement[the_parser.prev_token.id];
     if (parser === undefined) {
-      return error(prev_token, 'expected a statement');
+      return the_parser.error(the_parser.prev_token, 'expected a statement');
     }
     // prev_token.class = 'statement';
-    the_statement = parser(prev_token);
+    the_statement = parser(the_parser.prev_token, the_parser);
     statement_list.push(the_statement);
     if (the_statement.disrupt === true) {
-      if (token.column_nr === get_indentation()) {
-        return error(token, 'unreachable');
+      if (the_parser.token.column_nr === the_parser.indentation) {
+        return the_parser.error(the_parser.token, 'unreachable');
       }
       break;
     }
   }
   if (statement_list.length === 0) {
-    if (!token.id.startsWith('export')) {
-      return error(token, 'expected a statement');
+    if (!the_parser.token.id.startsWith('export')) {
+      return the_parser.error(the_parser.token, 'expected a statement');
     }
   } else {
     //@ts-ignore

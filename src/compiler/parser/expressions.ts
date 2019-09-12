@@ -1,17 +1,10 @@
-import { register, lookup, error } from '../globals';
 import {
-  is_line_break,
-  same_line,
-  advance,
-  indent,
-  outdent,
-  at_indentation,
-  the_end,
-  parse_dot,
-  parse_subscript,
-  parse_invocation,
-  get_tokens,
-} from '../neo.parse';
+  ArrayLiteralExpression,
+  RecordLiteralExpression,
+  FunctionLiteralExpression,
+} from '../NodesTypes';
+import { Parser } from '../neo.parse';
+import { statements } from './statement';
 
 // The 'parse_prefix', and 'parse_suffix' objects
 // contain functions that do the specialized parsing. We are using
@@ -27,9 +20,9 @@ const parse_suffix = Object.create(null);
 function suffix(
   id: string,
   precedence: number,
-  optional_parser = function infix(left, the_token) {
+  optional_parser = function infix(parser, left, the_token) {
     the_token.zeroth = left;
-    the_token.wunth = expression(precedence);
+    the_token.wunth = expression(parser, precedence);
     return the_token;
   }
 ) {
@@ -42,17 +35,17 @@ function suffix(
   parse_suffix[id] = Object.freeze(the_symbol);
 }
 
-suffix('|', 111, function parse_default(left, the_bar) {
+suffix('|', 111, function parse_default(parser, left, the_bar) {
   the_bar.zeroth = left;
-  the_bar.wunth = expression(112);
-  advance('|');
+  the_bar.wunth = expression(parser, 112);
+  parser.advance('|');
   return the_bar;
 });
-suffix('?', 111, function then_else(left, the_then) {
+suffix('?', 111, function then_else(parser, left, the_then) {
   the_then.zeroth = left;
-  the_then.wunth = expression();
-  advance('!');
-  the_then.twoth = expression();
+  the_then.wunth = expression(parser);
+  parser.advance('!');
+  the_then.twoth = expression(parser);
   return the_then;
 });
 suffix('/\\', 222);
@@ -74,13 +67,12 @@ suffix('(', 777, parse_invocation);
 const rel_op = Object.create(null);
 
 function relational(operator) {
-  const { token } = get_tokens();
   rel_op[operator] = true;
-  return suffix(operator, 333, function(left, the_token) {
+  return suffix(operator, 333, function(parser, left, the_token) {
     the_token.zeroth = left;
-    the_token.wunth = expression(333);
-    if (rel_op[token.id] === true) {
-      return error(token, 'unexpected relational operator');
+    the_token.wunth = expression(parser, 333);
+    if (rel_op[parser.token.id] === true) {
+      return parser.error(parser.token, 'unexpected relational operator');
     }
     return the_token;
   });
@@ -103,83 +95,87 @@ function prefix(id, parser) {
   parse_prefix[id] = Object.freeze(the_symbol);
 }
 
-prefix('(', function(ignore) {
+prefix('(', function(parser, ignore) {
   let result;
-  if (is_line_break()) {
-    indent();
-    result = expression(0, true);
-    outdent();
-    at_indentation();
+  if (parser.is_line_break()) {
+    parser.indent();
+    result = expression(parser, 0, true);
+    parser.outdent();
+    parser.at_indentation();
   } else {
-    result = expression(0);
-    same_line();
+    result = expression(parser, 0);
+    parser.same_line();
   }
-  advance(')');
+  parser.advance(')');
   return result;
 });
 
-prefix('[', function arrayliteral(the_bracket) {
-  const { token, next_token } = get_tokens();
+prefix('[', function arrayliteral(parser, the_bracket) {
+  const arrayLiteralExpression = the_bracket as ArrayLiteralExpression;
+  arrayLiteralExpression.syntaxKind = 'ArrayLiteralExpression';
+
   let matrix = [];
   let array = [];
-  if (!is_line_break()) {
+  if (!parser.is_line_break()) {
     while (true) {
-      array.push(ellipsis(expression()));
-      if (token.id === ',') {
-        same_line();
-        advance(',');
+      array.push(ellipsis(parser, expression(parser)));
+      if (parser.token.id === ',') {
+        parser.same_line();
+        parser.advance(',');
       } else if (
-        token.id === ';' &&
+        parser.token.id === ';' &&
         array.length > 0 &&
-        //@ts-ignore
-        next_token !== ']'
+        parser.next_token.id !== ']'
       ) {
-        same_line();
-        advance(';');
+        parser.same_line();
+        parser.advance(';');
         matrix.push(array);
         array = [];
       } else {
         break;
       }
     }
-    same_line();
+    parser.same_line();
   } else {
-    indent();
+    parser.indent();
     while (true) {
-      array.push(ellipsis(expression(0, is_line_break())));
-      if (token.id === ']' || token === the_end) {
+      array.push(ellipsis(parser, expression(parser, 0, parser.is_line_break())));
+      if (parser.token.id === ']' || parser.token === parser.the_end) {
         break;
       }
-      if (token.id === ';') {
-        if (array.length === 0 || next_token.id === ']') {
+      if (parser.token.id === ';') {
+        if (array.length === 0 || parser.next_token.id === ']') {
           break;
         }
-        same_line();
-        advance(';');
+        parser.same_line();
+        parser.advance(';');
         matrix.push(array);
         array = [];
-      } else if (token.id === ',' || !is_line_break()) {
-        same_line();
-        advance(',');
+      } else if (parser.token.id === ',' || !parser.is_line_break()) {
+        parser.same_line();
+        parser.advance(',');
       }
     }
-    outdent();
-    if (token.column_nr !== indentation) {
-      return error(token, 'expected at ' + indentation);
+    parser.outdent();
+    if (parser.token.column_nr !== parser.indentation) {
+      return parser.error(parser.token, 'expected at ' + parser.indentation);
     }
   }
-  advance(']');
+  parser.advance(']');
   if (matrix.length > 0) {
     matrix.push(array);
-    the_bracket.zeroth = matrix;
+    arrayLiteralExpression.zeroth = matrix;
   } else {
-    the_bracket.zeroth = array;
+    arrayLiteralExpression.zeroth = array;
   }
-  return the_bracket;
+  return arrayLiteralExpression;
 });
 
 prefix('[]', function emptyarrayliteral(the_brackets) {
-  return the_brackets;
+  const arrayLiteralExpression = the_brackets as ArrayLiteralExpression;
+  arrayLiteralExpression.syntaxKind = 'ArrayLiteralExpression';
+
+  return arrayLiteralExpression;
 });
 
 // The record literal parser recognizes 4 forms of fields.
@@ -188,72 +184,81 @@ prefix('[]', function emptyarrayliteral(the_brackets) {
 //  * "string": expression
 //  * [expression]: expression
 
-prefix('{', function recordliteral(the_brace) {
+prefix('{', function recordliteral(parser, the_brace) {
+  const recordLiteralExpression = the_brace as RecordLiteralExpression;
+  recordLiteralExpression.syntaxKind = 'RecordLiteralExpression';
+
   const properties = [];
   let key;
   let value;
-  const open = the_brace.line_nr !== token.line_nr;
+  const open = recordLiteralExpression.line_nr !== parser.token.line_nr;
   if (open) {
-    indent();
+    parser.indent();
   }
   while (true) {
-    line_check(open);
-    if (token.id === '[') {
-      advance('[');
-      key = expression();
-      advance(']');
-      same_line();
-      advance(':');
-      value = expression();
+    parser.line_check(open);
+    if (parser.token.id === '[') {
+      parser.advance('[');
+      key = expression(parser);
+      parser.advance(']');
+      parser.same_line();
+      parser.advance(':');
+      value = expression(parser);
     } else {
-      key = token;
-      advance();
+      key = parser.token;
+      parser.advance();
       if (key.alphameric === true) {
-        if (token.id === ':') {
-          same_line();
-          advance(':');
-          value = expression();
+        if (parser.token.id === ':') {
+          parser.same_line();
+          parser.advance(':');
+          value = expression(parser);
         } else {
-          value = lookup(key.id);
+          value = parser.lookup(key.id);
           if (value === undefined) {
-            return error(key, 'expected a variable');
+            return parser.error(key, 'expected a variable');
           }
         }
         key = key.id;
       } else if (key.id === '(text)') {
         key = key.text;
-        same_line();
-        advance(':');
-        value = expression();
+        parser.same_line();
+        parser.advance(':');
+        value = expression(parser);
       } else {
-        return error(key, 'expected a key');
+        return parser.error(key, 'expected a key');
       }
     }
     properties.push({
       zeroth: key,
       wunth: value,
     });
-    if (token.column_nr < indentation || token.id === '}') {
+    if (
+      parser.token.column_nr < parser.indentation ||
+      parser.token.id === '}'
+    ) {
       break;
     }
     if (!open) {
-      same_line();
-      advance(',');
+      parser.same_line();
+      parser.advance(',');
     }
   }
   if (open) {
-    outdent();
-    at_indentation();
+    parser.outdent();
+    parser.at_indentation();
   } else {
-    same_line();
+    parser.same_line();
   }
-  advance('}');
-  the_brace.zeroth = properties;
-  return the_brace;
+  parser.advance('}');
+  recordLiteralExpression.zeroth = properties;
+  return recordLiteralExpression;
 });
 
 prefix('{}', function emptyrecordliteral(the_braces) {
-  return the_braces;
+  const recordLiteralExpression = the_braces as RecordLiteralExpression;
+  recordLiteralExpression.syntaxKind = 'RecordLiteralExpression';
+
+  return recordLiteralExpression;
 });
 
 // The function literal parser makes new functions. It also gives access to functinos.
@@ -287,41 +292,44 @@ const functino = (function make_set(array, value = true) {
   '(',
 ]);
 
-prefix('ƒ', function function_literal(the_function) {
+prefix('ƒ', function function_literal(parser: Parser, the_function) {
+  const functionLiteralExpression = the_function as FunctionLiteralExpression;
+  functionLiteralExpression.syntaxKind = 'FunctionLiteralExpression';
+
   // If the 'ƒ' is followed by a suffix operator,
   // then produce the corresponding functino.
-
-  const the_operator = token;
+  const the_operator = parser.token;
   if (
-    functino[token.id] === true &&
-    (the_operator.id !== '(' || next_token.id === ')')
+    functino[parser.token.id] === true &&
+    (the_operator.id !== '(' || parser.next_token.id === ')')
   ) {
-    advance();
+    parser.advance();
     if (the_operator.id === '(') {
-      same_line();
-      advance(')');
+      parser.same_line();
+      parser.advance(')');
     } else if (the_operator.id === '[') {
-      same_line();
-      advance(']');
+      parser.same_line();
+      parser.advance(']');
     } else if (the_operator.id === '?') {
-      same_line();
-      advance('!');
+      parser.same_line();
+      parser.advance('!');
     } else if (the_operator.id === '|') {
-      same_line();
-      advance('|');
+      parser.same_line();
+      parser.advance('|');
     }
-    the_function.zeroth = the_operator.id;
-    return the_function;
+    functionLiteralExpression.zeroth = the_operator.id;
+    return functionLiteralExpression;
   }
 
   // Set up the new function.
 
-  if (loop.length > 0) {
-    return error(the_function, 'Do not make functions in loops.');
+  if (parser.is_in_loop()) {
+    return parser.error(functionLiteralExpression, 'Do not make functions in loops.');
   }
-  the_function.scope = Object.create(null);
-  the_function.parent = now_function;
-  now_function = the_function;
+
+  functionLiteralExpression.scope = Object.create(null);
+  functionLiteralExpression.parent = parser.get_now_function();
+  parser.set_now_function(functionLiteralExpression);
 
   //. Function parameters come in 3 forms.
   //.      name
@@ -331,127 +339,228 @@ prefix('ƒ', function function_literal(the_function) {
   // The parameter list can be open or closed.
 
   const parameters = [];
-  if (token.alphameric === true) {
-    let open = is_line_break();
+  if (parser.token.alphameric === true) {
+    let open = parser.is_line_break();
     if (open) {
-      indent();
+      parser.indent();
     }
     while (true) {
-      line_check(open);
-      let the_parameter = token;
-      register(the_parameter);
-      advance();
-      if (token.id === '...') {
-        parameters.push(ellipsis(the_parameter));
+      parser.line_check(open);
+      let the_parameter = parser.token;
+      parser.register(the_parameter);
+      parser.advance();
+      if (parser.token.id === '...') {
+        parameters.push(ellipsis(parser, the_parameter));
         break;
       }
-      if (token.id === '|') {
-        advance('|');
-        parameters.push(parse_suffix['|'](the_parameter, prev_token));
+      if (parser.token.id === '|') {
+        parser.advance('|');
+        parameters.push(parse_suffix['|'](the_parameter, parser.prev_token));
       } else {
         parameters.push(the_parameter);
       }
       if (open) {
-        if (token.id === ',') {
-          return error(token, "unexpected ','");
+        if (parser.token.id === ',') {
+          return parser.error(parser.token, "unexpected ','");
         }
-        if (token.alphameric !== true) {
+        if (parser.token.alphameric !== true) {
           break;
         }
       } else {
-        if (token.id !== ',') {
+        if (parser.token.id !== ',') {
           break;
         }
-        same_line();
-        advance(',');
-        if (token.alphameric !== true) {
-          return error(token, 'expected another parameter');
+        parser.same_line();
+        parser.advance(',');
+        if (parser.token.alphameric !== true) {
+          return parser.error(parser.token, 'expected another parameter');
         }
       }
     }
     if (open) {
-      outdent();
-      at_indentation();
+      parser.outdent();
+      parser.at_indentation();
     } else {
-      same_line();
+      parser.same_line();
     }
   }
-  the_function.zeroth = parameters;
+  functionLiteralExpression.zeroth = parameters;
 
   // A function can have a '('return expression')' or a '{'function body'}'.
 
   // Parse the return expression.
 
-  if (token.id === '(') {
-    advance('(');
-    if (is_line_break()) {
-      indent();
-      the_function.wunth = expression(0, true);
-      outdent();
-      at_indentation();
+  if (parser.token.id === '(') {
+    parser.advance('(');
+    if (parser.is_line_break()) {
+      parser.indent();
+      functionLiteralExpression.wunth = expression(parser, 0, true);
+      parser.outdent();
+      parser.at_indentation();
     } else {
-      the_function.wunth = expression();
-      same_line();
+      functionLiteralExpression.wunth = expression(parser);
+      parser.same_line();
     }
-    advance(')');
+    parser.advance(')');
   } else {
     // Parse the function body. The body must contain an explicit 'return'.
     // There is no implicit return by falling thru the bottom.
 
-    advance('{');
-    indent();
-    the_function.wunth = statements();
-    if (the_function.wunth.return !== true) {
-      return error(prev_token, "missing explicit 'return'");
+    parser.advance('{');
+    parser.indent();
+    functionLiteralExpression.wunth = statements(parser);
+    if (functionLiteralExpression.wunth.return !== true) {
+      return parser.error(parser.prev_token, "missing explicit 'return'");
     }
 
     // Parse the 'failure' handler.
 
-    if (token.id === 'failure') {
-      outdent();
-      at_indentation();
-      advance('failure');
-      indent();
-      the_function.twoth = statements();
-      if (the_function.twoth.return !== true) {
-        return error(prev_token, "missing explicit 'return'");
+    if (parser.token.id === 'failure') {
+      parser.outdent();
+      parser.at_indentation();
+      parser.advance('failure');
+      parser.indent();
+      functionLiteralExpression.twoth = statements(parser);
+      if (functionLiteralExpression.twoth.return !== true) {
+        return parser.error(parser.prev_token, "missing explicit 'return'");
       }
     }
-    outdent();
-    at_indentation();
-    advance('}');
+    parser.outdent();
+    parser.at_indentation();
+    parser.advance('}');
   }
-  now_function = the_function.parent;
-  return the_function;
+  parser.set_now_function(functionLiteralExpression.parent);
+  return functionLiteralExpression;
 });
 
-prefix('module', function module_literal(the_module) {
-  if (now_function.id !== '' && now_function.id !== 'module') {
-    return error(the_module, 'Do not make modules inside function.');
+export function parse_dot(parser: Parser, left, the_dot) {
+  // The expression on the left must be a variable or an expression
+  // that can return an object (excluding object literals).
+  if (
+    !left.alphameric &&
+    left.id !== '.' &&
+    (left.id !== '[' || left.wunth === undefined) &&
+    left.id !== '('
+  ) {
+    return parser.error(parser.token, 'expected a variable');
   }
-
-  if (loop.length > 0) {
-    return error(the_module, 'Do not make functions in loops.');
+  let the_name = parser.token;
+  if (the_name.alphameric !== true) {
+    return parser.error(the_name, 'expected a field name');
   }
+  the_dot.zeroth = left;
+  the_dot.wunth = the_name;
+  parser.same_line();
+  parser.advance();
+  return the_dot;
+}
 
-  the_module.filename = the_filename;
-  // Creating new scope.
-  the_module.scope = Object.create(null);
-  the_module.parent = now_function;
-  // Changing scopes.
-  now_function = the_module;
+export function parse_subscript(parser, left, the_bracket) {
+  
+  if (
+    !left.alphameric &&
+    left.id !== '.' &&
+    (left.id !== '[' || left.wunth === undefined) &&
+    left.id !== '('
+  ) {
+    return parser.error(parser.token, 'expected a variable');
+  }
+  the_bracket.zeroth = left;
+  if (parser.is_line_break()) {
+    parser.indent();
+    the_bracket.wunth = expression(parser, 0, true);
+    parser.outdent();
+    parser.at_indentation();
+  } else {
+    the_bracket.wunth = parser.expression();
+    parser.same_line();
+  }
+  parser.advance(']');
+  return the_bracket;
+}
 
-  advance('{');
-  indent();
-  the_module.zeroth = statements();
-  outdent();
-  at_indentation();
-  advance('}');
+// The 'ellipsis is not packaged like the other suffix operators because it is allowed
+// in only three places: Parameter lists, argument lists, and array literals. It is not allowed
+// anywhere else, so we treat it as a special case.
 
-  // Change scope back to parent
-  now_function = the_module.parent;
-  return the_module;
-});
+export function ellipsis(parser, left) {
+  if (parser.token.id === '...') {
+    const the_ellipsis = parser.token;
+    parser.same_line();
+    parser.advance('...');
+    the_ellipsis.zeroth = left;
+    return the_ellipsis;
+  }
+  return left;
+}
+
+// The ()invocation parser parses function calls. It calls argument_expression for each argument.
+// An open form invocation lists the argument vertically without commas.
+
+export function parse_invocation(parser: Parser, left, the_paren) {
+  // function invocation:
+  //      expression
+  //      expression...
+
+  const args = [];
+  if (parser.token.id === ')') {
+    parser.same_line();
+  } else {
+    const open = parser.is_line_break();
+    if (open) {
+      parser.indent();
+    }
+    while (true) {
+      parser.line_check(open);
+      args.push(ellipsis(parser, argument_expression(parser)));
+      if (parser.token.id === ')' || parser.token === Parser.the_end) {
+        break;
+      }
+      if (!open) {
+        parser.same_line();
+        parser.advance(',');
+      }
+    }
+    if (open) {
+      parser.outdent();
+      parser.at_indentation();
+    } else {
+      parser.same_line();
+    }
+  }
+  parser.advance(')');
+  the_paren.zeroth = left;
+  the_paren.wunth = args;
+  return the_paren;
+}
+
+// prefix('module', function module_literal(the_module) {
+//   if (now_function.id !== '' && now_function.id !== 'module') {
+//     return error(the_module, 'Do not make modules inside function.');
+//   }
+
+//   if (loop.length > 0) {
+//     return error(the_module, 'Do not make functions in loops.');
+//   }
+
+//   the_module.filename = the_filename;
+//   // Creating new scope.
+//   the_module.scope = Object.create(null);
+//   the_module.parent = now_function;
+//   // Changing scopes.
+//   now_function = the_module;
+
+//   advance('{');
+//   indent();
+//   the_module.zeroth = statements();
+//   outdent();
+//   at_indentation();
+//   advance('}');
+
+//   // Change scope back to parent
+//   now_function = the_module.parent;
+//   return the_module;
+// });
 
 Object.freeze(parse_prefix);
 Object.freeze(parse_suffix);
@@ -465,37 +574,40 @@ Object.freeze(parse_suffix);
 // producing a new left part. The right part's parser will probably call 'expression' again itself,
 // possibly with a different precedence.
 
-function argument_expression(precedence = 0, open = false) {
+export function argument_expression(
+  parser: Parser,
+  precedence = 0,
+  open = false
+) {
   // It takes an optional 'open' parameter that allows tolerance of
   // certain line breaks. If 'open' is true, we expect the token to
   // be at the indentation point.
-  const { token } = get_tokens();
   let definition;
   let left;
-  let the_token = token;
+  let the_token = parser.token;
 
   // Is the token a number literal or text literal?
   if (the_token.id === '(number)' || the_token.id === '(text)') {
-    advance();
+    parser.advance();
     left = the_token;
 
     // Is the token alphameric?
   } else if (the_token.alphameric === true) {
-    definition = lookup(the_token.id);
+    definition = parser.lookup(the_token.id);
     if (definition === undefined) {
-      return error(the_token, 'expected a variable');
+      return parser.error(the_token, 'expected a variable');
     }
     left = definition;
-    advance();
+    parser.advance();
   } else {
     // The token might be a prefix thing: '(', '[', '{', 'ƒ'.
 
     definition = parse_prefix[the_token.id];
     if (definition === undefined) {
-      return error(the_token, 'expected a variable');
+      return parser.error(the_token, 'expected a variable');
     }
-    advance();
-    left = definition.parser(the_token);
+    parser.advance();
+    left = definition.parser(parser, the_token);
   }
 
   // We have the left part. Is there a suffix operator on the right?
@@ -503,20 +615,20 @@ function argument_expression(precedence = 0, open = false) {
   // If so, combine the left and right to form a new left.
 
   while (true) {
-    the_token = token;
+    the_token = parser.token;
     definition = parse_suffix[the_token.id];
     if (
-      token.column_nr < indentation ||
-      (!open && is_line_break()) ||
+      parser.token.column_nr < parser.indentation ||
+      (!open && parser.is_line_break()) ||
       definition === undefined ||
       definition.precedence <= precedence
     ) {
       break;
     }
-    line_check(open && is_line_break());
-    advance();
+    parser.line_check(open && parser.is_line_break());
+    parser.advance();
     the_token.class = 'suffix';
-    left = definition.parser(left, the_token);
+    left = definition.parser(parser, left, the_token);
   }
 
   // After going zero or more times around the loop,
@@ -525,9 +637,9 @@ function argument_expression(precedence = 0, open = false) {
   return left;
 }
 
-function expression(precedence?: number, open = false) {
+export function expression(parser: Parser, precedence?: number, open = false) {
   // Expressions do a whitespace check that argument expressions do not need.
 
-  line_check(open);
-  return argument_expression(precedence, open);
+  parser.line_check(open);
+  return argument_expression(parser, precedence, open);
 }

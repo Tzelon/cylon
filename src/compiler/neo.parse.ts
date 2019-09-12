@@ -1,241 +1,257 @@
-// neo.parse.js
-// Douglas Crockford
-// 2018-08-27
-
-// Public Domain
-
-/*jslint devel */
-
-/*property
-    alphameric, break, call, class, column_nr, column_to, concat, create, def,
-    disrupt, fail, forEach, freeze, id, if, indexOf, length, let, line_nr, loop,
-    origin, parent, parser, pop, precedence, push, readonly, return, scope,
-    slice, startsWith, text, twoth, var, wunth, zeroth
-*/
 import generator, { Token } from './neo.tokenize';
-import { error } from './globals'
+import { statements } from './parser/statement';
+import primordial from './parser/primordial';
 
-// The generator function supplies a stream of token objects.
-// Three tokens are visible as 'prev_token', 'token', and 'next_token'.
-// The 'advance' function uses the generator to cycle thru all of
-// the token objects, skipping over the comments.
+type LoopStatus = 'break' | 'return' | 'infinite';
 
-let the_token_generator: ReturnType<typeof generator>;
-let prev_token: Token;
-let token: Token;
-let next_token: Token;
+export class Parser {
+  readonly the_filename: string;
+  indentation: number;
+  loop = [];
+  now_function;
+  now_module;
+  the_error;
+  prev_token: Token;
+  next_token: Token;
+  token: Token;
+  the_token_generator: ReturnType<typeof generator>;
 
-export function get_tokens() {
-    return {token, prev_token, next_token};
-}
-
-export const the_end = Object.freeze({
+  static the_end = Object.freeze({
     id: '(end)',
     precedence: 0,
     column_nr: 0,
     column_to: 0,
-    line_nr: 1
-});
+    line_nr: 1,
+  });
 
-// The advance function advences to the next token. Its companion, the prelude function,
-// tries to split the current token into two tokens.
-export function advance(id?: string) {
+  constructor(filename: string, token_generator: ReturnType<typeof generator>) {
+    this.the_filename = filename;
+    this.indentation = 0;
+    this.the_error;
+    this.now_module; // The scope currently being processed. can be inside a function or module
+    this.now_function= {
+        id: '',
+        scope: Object.create(null),
+        zeroth: null
+    }; // The scope currently being processed. can be inside a function or module
+    this.loop = []; // An array of loop exit status.
+
+    // The generator function supplies a stream of token objects.
+    // Three tokens are visible as 'prev_token', 'token', and 'next_token'.
+    // The 'advance' function uses the generator to cycle thru all of
+    // the token objects, skipping over the comments.
+
+    this.the_token_generator = token_generator;
+    this.prev_token;
+    this.token;
+    this.next_token = Parser.the_end;
+  }
+
+  // Whitespace is significant in this language. A line break can signal the end of a statement or element.
+  // Indentation can signal the end of a clause. These functions help to manage that.
+
+  set_now_function(the_now_function) {
+    this.now_function = the_now_function;
+  }
+
+  get_now_function() {
+    return this.now_function;
+  }
+
+  is_in_function() {
+    return this.now_function !== undefined;
+  }
+
+  is_in_module() {
+    return this.now_module !== undefined;
+  }
+
+  set_now_module(the_now_module) {
+    this.now_module = the_now_module;
+  }
+
+  get_now_module() {
+    return this.now_module;
+  }
+
+  is_in_loop() {
+    return this.loop.length > 0;
+  }
+
+  set_top_loop_status(status: LoopStatus) {
+    this.loop[this.loop.length - 1] = status;
+  }
+
+  set_infinite_loops_to_return() {
+    this.loop.forEach(function(element, element_nr) {
+      if (element === 'infinite') {
+        this.loop[element_nr] = 'return';
+      }
+    });
+  }
+
+  error(zeroth, wunth): never {
+    this.the_error = {
+      id: '(error)',
+      zeroth,
+      wunth,
+    };
+    throw 'fail';
+  }
+
+  // The register function declares a new variable in a function's scope.
+  // The lookup function finds a veriable in the most relevant scope.
+  register(the_token: Token, readonly = false) {
+    // Add a variable to the current scope.
+
+    // if (!this.is_in_function()) {
+    //   this.error(the_token, 'must be inside a function');
+    // }
+
+    if (this.now_function.scope[the_token.id] !== undefined) {
+      this.error(the_token, 'already defined');
+    }
+
+    // The origin property capture the function that created the variable.
+    // The scope property holds all of the variable created or used in a function.
+    // The parent property points to the function that created this function.
+
+    the_token.readonly = readonly;
+    the_token.origin = this.now_function;
+    this.now_function.scope[the_token.id] = the_token;
+  }
+
+  lookup(id: string) {
+    // Look for the definition in the current scope.
+
+    let definition = this.now_function.scope[id];
+
+    // If that fails, search the ancestor scopes.
+
+    if (definition === undefined) {
+      let parent = this.now_function.parent;
+      while (parent !== undefined) {
+        definition = parent.scope[id];
+        if (definition !== undefined) {
+          break;
+        }
+        parent = parent.parent;
+      }
+
+      // If that fails, search the primordials.
+
+      if (definition === undefined) {
+        definition = primordial[id];
+      }
+
+      // Remember that the current function used this definition.
+
+      if (definition !== undefined) {
+        this.now_function.scope[id] = definition;
+      }
+    }
+    return definition;
+  }
+
+  // The advance function advences to the next token. Its companion, the prelude function,
+  // tries to split the current token into two tokens.
+  advance(id?: string) {
     // Advance to the next token using the token generator.
     // If an 'id' is supplied, make sure that the current token matches that 'id'.
 
-    if (id !== undefined && id !== token.id) {
-        return error(token, "expected '" + id + "'");
+    if (id !== undefined && id !== this.token.id) {
+      return this.error(this.token, "expected '" + id + "'");
     }
-    prev_token = token;
-    token = next_token;
-    next_token = the_token_generator() || the_end;
-}
+    this.prev_token = this.token;
+    this.token = this.next_token;
+    this.next_token = this.the_token_generator() || Parser.the_end;
+  }
 
-function prelude() {
-    // If 'token' contains a space, split it, putting the first part in
-    // 'prev_token'. Otherwise, advance.
-    if (token.alphameric) {
-        let space_at = token.id.indexOf(' ');
-        if (space_at > 0) {
-            prev_token = {
-                id: token.id.slice(0, space_at),
-                alphameric: true,
-                line_nr: token.line_nr,
-                column_nr: token.column_nr,
-                column_to: token.column_nr + space_at
-            };
-            token.id = token.id.slice(space_at + 1);
-            token.column_nr = token.column_nr + space_at + 1;
-            return;
-        }
-    }
-    return advance();
-}
+  // prelude() {
+  //     // If 'token' contains a space, split it, putting the first part in
+  //     // 'prev_token'. Otherwise, advance.
+  //     if (token.alphameric) {
+  //       let space_at = token.id.indexOf(' ');
+  //       if (space_at > 0) {
+  //         prev_token = {
+  //           id: token.id.slice(0, space_at),
+  //           alphameric: true,
+  //           line_nr: token.line_nr,
+  //           column_nr: token.column_nr,
+  //           column_to: token.column_nr + space_at,
+  //         };
+  //         token.id = token.id.slice(space_at + 1);
+  //         token.column_nr = token.column_nr + space_at + 1;
+  //         return;
+  //       }
+  //     }
+  //     return advance();
+  //   }
 
-// Whitespace is significant in this language. A line break can signal the end of a statement or element.
-// Indentation can signal the end of a clause. These functions help to manage that.
+  indent() {
+    this.indentation += 4;
+  }
 
-let indentation: number;
+  outdent() {
+    this.indentation -= 4;
+  }
 
-export function get_indentation() {
-    return indentation;
-}
-
-export function indent() {
-    indentation += 4;
-}
-
-export function outdent() {
-    indentation -= 4;
-}
-
-export function at_indentation() {
-    if (token.column_nr !== indentation) {
-        return error(token, 'expected at ' + indentation);
+  at_indentation() {
+    if (this.token.column_nr !== this.indentation) {
+      return this.error(this.token, 'expected at ' + this.indentation);
     }
     return true;
-}
+  }
 
-export function is_line_break() {
-    return token.line_nr !== prev_token.line_nr;
-}
+  is_line_break() {
+    return this.token.line_nr !== this.prev_token.line_nr;
+  }
 
-export function same_line() {
-    if (is_line_break()) {
-        return error(token, 'unexpected linebreak');
+  same_line() {
+    if (this.is_line_break()) {
+      return this.error(this.token, 'unexpected linebreak');
     }
-}
+  }
 
-function line_check(open: boolean) {
-    return open ? at_indentation() : same_line();
-}
+  line_check(open: boolean) {
+    return open ? this.at_indentation() : this.same_line();
+  }
 
-/**
- * we need to know if its a module defenition or just a variable name
- * @returns if it is a module
- */
-export function tag_module() {
-    if (token.id === 'module' && next_token.id === '{') {
-        token.alphameric = false;
-        return true;
+  /**
+   * we need to know if its a module defenition or just a variable name
+   * @returns if it is a module
+   */
+  tag_module() {
+    if (this.token.id === 'module' && this.next_token.id === '{') {
+      this.token.alphameric = false;
+      return true;
     }
 
     return false;
-}
+  }
 
-/**
- *
- * @param the_prev_token
- * @returns if the name contained dots
- */
-export function advance_dots(the_token: Token) {
-    if (next_token.id !== '.') return false;
+  /**
+   *
+   * @param the_prev_token
+   * @returns if the name contained dots
+   */
+  advance_dots(the_token: Token) {
+    if (this.next_token.id !== '.') return false;
 
-    while (next_token.id === '.') {
-        same_line();
-        advance();
-        // @ts-ignore
-        the_token.column_to = next_token.column_to;
-        the_token.id += '.' + next_token.id;
-        advance();
+    while (this.next_token.id === '.') {
+      this.same_line();
+      this.advance();
+      // @ts-ignore
+      the_token.column_to = next_token.column_to;
+      the_token.id += '.' + this.next_token.id;
+      this.advance();
     }
-    token = the_token;
+    this.token = the_token;
     return true;
-}
+  }
 
-
-// The 'precedence' property determines how the suffix operator is parsed. The 'parse' property
-// is a function for parsing a prefix or suffix. The 'class' property is "suffix", "statement", or undefined.
-
-export function parse_dot(left, the_dot: Token) {
-    // The expression on the left must be a variable or an expression
-    // that can return an object (excluding object literals).
-
-    if (!left.alphameric && left.id !== '.' && (left.id !== '[' || left.wunth === undefined) && left.id !== '(') {
-        return error(token, 'expected a variable');
-    }
-    let the_name = token;
-    if (the_name.alphameric !== true) {
-        return error(the_name, 'expected a field name');
-    }
-    the_dot.zeroth = left;
-    the_dot.wunth = the_name;
-    same_line();
-    advance();
-    return the_dot;
-}
-
-export function parse_subscript(left, the_bracket: Token) {
-    if (!left.alphameric && left.id !== '.' && (left.id !== '[' || left.wunth === undefined) && left.id !== '(') {
-        return error(token, 'expected a variable');
-    }
-    the_bracket.zeroth = left;
-    if (is_line_break()) {
-        indent();
-        the_bracket.wunth = expression(0, true);
-        outdent();
-        at_indentation();
-    } else {
-        the_bracket.wunth = expression();
-        same_line();
-    }
-    advance(']');
-    return the_bracket;
-}
-
-// The 'ellipsis is not packaged like the other suffix operators because it is allowed
-// in only three places: Parameter lists, argument lists, and array literals. It is not allowed
-// anywhere else, so we treat it as a special case.
-
-function ellipsis(left) {
-    if (token.id === '...') {
-        const the_ellipsis = token;
-        same_line();
-        advance('...');
-        the_ellipsis.zeroth = left;
-        return the_ellipsis;
-    }
-    return left;
-}
-
-// The ()invocation parser parses function calls. It calls argument_expression for each argument.
-// An open form invocation lists the argument vertically without commas.
-
-export function parse_invocation(left, the_paren: Token) {
-    // function invocation:
-    //      expression
-    //      expression...
-
-    const args = [];
-    if (token.id === ')') {
-        same_line();
-    } else {
-        const open = is_line_break();
-        if (open) {
-            indent();
-        }
-        while (true) {
-            line_check(open);
-            args.push(ellipsis(argument_expression()));
-            if (token.id === ')' || token === the_end) {
-                break;
-            }
-            if (!open) {
-                same_line();
-                advance(',');
-            }
-        }
-        if (open) {
-            outdent();
-            at_indentation();
-        } else {
-            same_line();
-        }
-    }
-    advance(')');
-    the_paren.zeroth = left;
-    the_paren.wunth = args;
-    return the_paren;
+  // The 'precedence' property determines how the suffix operator is parsed. The 'parse' property
+  // is a function for parsing a prefix or suffix. The 'class' property is "suffix", "statement", or undefined.
 }
 
 /**
@@ -244,30 +260,29 @@ export function parse_invocation(left, the_paren: Token) {
  * @param token_generator
  * @param filename - the original file name
  */
-export default function parse(token_generator: ReturnType<typeof generator>, filename: string) {
-    try {
-        the_filename = filename;
-        indentation = 0;
-        loop = [];
-        the_token_generator = token_generator;
-        next_token = the_end;
-        const mod: Module = {
-            filename,
-            id: '',
-            syntaxKind: SyntaxKind.Module,
-            zeroth: null
-        };
-        now_function = mod;
-        advance();
-        advance();
-        let the_statements = [];
-        the_statements = the_statements.concat(statements());
-        if (token !== the_end) {
-            return error(token, 'unexpected');
-        }
-        mod.zeroth = the_statements;
-        return mod;
-    } catch (ignore) {
-        return the_error;
+export default function parse(
+  token_generator: ReturnType<typeof generator>,
+  filename: string
+) {
+  const the_parser = new Parser(filename, token_generator);
+  try {
+    const mod = {
+      filename,
+      id: '',
+      syntaxKind: 'ModuleStatement',
+      zeroth: null,
+    };
+    the_parser.set_now_module(mod);
+    the_parser.advance();
+    the_parser.advance();
+    let the_statements = [];
+    the_statements = the_statements.concat(statements(the_parser));
+    if (the_parser.token !== Parser.the_end) {
+      return the_parser.error(the_parser.token, 'unexpected');
     }
+    mod.zeroth = the_statements;
+    return mod;
+  } catch (ignore) {
+    return the_parser.the_error;
+  }
 }

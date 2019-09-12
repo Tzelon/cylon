@@ -1,13 +1,51 @@
 export type SyntaxKind =
-  | 'BreakStatment'
-  | 'CallStatment'
+  // Statements
+  | 'BreakStatement'
+  | 'CallStatement'
   | 'DefStatement'
   | 'VarStatement'
   | 'FailStatement'
   | 'IfStatement'
   | 'LoopStatement'
   | 'ReturnStatement'
-  | 'LetStatement';
+  | 'LetStatement'
+  //Expressions
+  | 'ArrayLiteralExpression'
+  | 'FunctionLiteralExpression'
+  | 'RecordLiteralExpression';
+
+interface Expression {
+  id: string;
+  syntaxKind: SyntaxKind;
+  line_nr: number;
+  column_nr: number;
+  column_to: number;
+}
+
+export interface ArrayLiteralExpression extends Expression {
+  syntaxKind: 'ArrayLiteralExpression';
+  zeroth: any;
+}
+
+export interface RecordLiteralExpression extends Expression {
+  syntaxKind: 'RecordLiteralExpression';
+  zeroth: any;
+}
+
+export interface FunctionLiteralExpression extends Expression {
+  syntaxKind: 'FunctionLiteralExpression';
+  scope: object;
+  zeroth: any;
+  wunth: any;
+  twoth: any;
+  parent: object
+}
+
+export interface BreakStatement extends Statement {
+  alphameric: boolean;
+  disrupt: true;
+  syntaxKind: 'BreakStatement';
+}
 
 interface Statement {
   id: string;
@@ -20,11 +58,11 @@ interface Statement {
 export interface BreakStatement extends Statement {
   alphameric: boolean;
   disrupt: true;
-  syntaxKind: 'BreakStatment';
+  syntaxKind: 'BreakStatement';
 }
 
 export interface CallStatement extends Statement {
-  syntaxKind: 'CallStatment';
+  syntaxKind: 'CallStatement';
   zeroth: any;
 }
 
