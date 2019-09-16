@@ -2,9 +2,13 @@ import {
   ArrayLiteralExpression,
   RecordLiteralExpression,
   FunctionLiteralExpression,
+  NumberLiteral,
+  TextLiteral,
+  Identifier,
 } from '../NodesTypes';
 import { Parser } from '../neo.parse';
 import { statements } from './statement';
+import { Token } from '../neo.tokenize';
 
 // The 'parse_prefix', and 'parse_suffix' objects
 // contain functions that do the specialized parsing. We are using
@@ -139,7 +143,9 @@ prefix('[', function arrayliteral(parser, the_bracket) {
   } else {
     parser.indent();
     while (true) {
-      array.push(ellipsis(parser, expression(parser, 0, parser.is_line_break())));
+      array.push(
+        ellipsis(parser, expression(parser, 0, parser.is_line_break()))
+      );
       if (parser.token.id === ']' || parser.token === parser.the_end) {
         break;
       }
@@ -324,7 +330,10 @@ prefix('ƒ', function function_literal(parser: Parser, the_function) {
   // Set up the new function.
 
   if (parser.is_in_loop()) {
-    return parser.error(functionLiteralExpression, 'Do not make functions in loops.');
+    return parser.error(
+      functionLiteralExpression,
+      'Do not make functions in loops.'
+    );
   }
 
   functionLiteralExpression.scope = Object.create(null);
@@ -456,7 +465,6 @@ export function parse_dot(parser: Parser, left, the_dot) {
 }
 
 export function parse_subscript(parser, left, the_bracket) {
-  
   if (
     !left.alphameric &&
     left.id !== '.' &&
@@ -534,6 +542,24 @@ export function parse_invocation(parser: Parser, left, the_paren) {
   return the_paren;
 }
 
+export function parse_literals(_parser: Parser, the_token: Token) {
+  if (the_token.id === '(number)') {
+    const textLiteralExpression = the_token as NumberLiteral;
+    textLiteralExpression.syntaxKind = 'NumberLiteral';
+  } else if (the_token.id === '(number)') {
+    const textLiteralExpression = the_token as TextLiteral;
+    textLiteralExpression.syntaxKind = 'TextLiteral';
+  }
+
+  return the_token;
+}
+
+export function parse_identifier(_parser: Parser, the_token: Token) {
+  const textLiteralExpression = the_token as Identifier;
+  textLiteralExpression.syntaxKind = 'Identifier';
+  return the_token;
+}
+
 // prefix('module', function module_literal(the_module) {
 //   if (now_function.id !== '' && now_function.id !== 'module') {
 //     return error(the_module, 'Do not make modules inside function.');
@@ -589,7 +615,7 @@ export function argument_expression(
   // Is the token a number literal or text literal?
   if (the_token.id === '(number)' || the_token.id === '(text)') {
     parser.advance();
-    left = the_token;
+    left = parse_literals(parser, the_token);
 
     // Is the token alphameric?
   } else if (the_token.alphameric === true) {
@@ -597,7 +623,7 @@ export function argument_expression(
     if (definition === undefined) {
       return parser.error(the_token, 'expected a variable');
     }
-    left = definition;
+    left = parse_identifier(parser, the_token);
     parser.advance();
   } else {
     // The token might be a prefix thing: '(', '[', '{', 'ƒ'.

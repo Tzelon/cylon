@@ -167,27 +167,6 @@ export class Parser {
     this.next_token = this.the_token_generator() || Parser.the_end;
   }
 
-  // prelude() {
-  //     // If 'token' contains a space, split it, putting the first part in
-  //     // 'prev_token'. Otherwise, advance.
-  //     if (token.alphameric) {
-  //       let space_at = token.id.indexOf(' ');
-  //       if (space_at > 0) {
-  //         prev_token = {
-  //           id: token.id.slice(0, space_at),
-  //           alphameric: true,
-  //           line_nr: token.line_nr,
-  //           column_nr: token.column_nr,
-  //           column_to: token.column_nr + space_at,
-  //         };
-  //         token.id = token.id.slice(space_at + 1);
-  //         token.column_nr = token.column_nr + space_at + 1;
-  //         return;
-  //       }
-  //     }
-  //     return advance();
-  //   }
-
   indent() {
     this.indentation += 4;
   }

@@ -246,24 +246,27 @@ parse_statement.loop = function(the_loop, parser) {
 parse_statement.return = function(the_return, parser) {
   const returnStatement = the_return as ReturnStatement;
   returnStatement.syntaxKind = 'ReturnStatement';
-  //   try {
-  if (!parser.is_in_function()) {
-    return parser.error(returnStatement, "'return' wants to be in a function.");
+  try {
+    if (!parser.is_in_function()) {
+      return parser.error(
+        returnStatement,
+        "'return' wants to be in a function."
+      );
+    }
+    parser.set_infinite_loops_to_return();
+    if (parser.is_line_break()) {
+      return parser.error(returnStatement, "'return' wants a return value.");
+    }
+    returnStatement.zeroth = expression(parser);
+    if (parser.token.id !== '}') {
+      return parser.error(returnStatement, "Misplaced 'return'.");
+    }
+    returnStatement.disrupt = true;
+    returnStatement.return = true;
+    return returnStatement;
+  } catch (ignore) {
+    return parser.the_error;
   }
-  parser.set_infinite_loops_to_return();
-  if (parser.is_line_break()) {
-    return parser.error(returnStatement, "'return' wants a return value.");
-  }
-  returnStatement.zeroth = expression(parser);
-  if (parser.token.id === '}') {
-    return parser.error(returnStatement, "Misplaced 'return'.");
-  }
-  returnStatement.disrupt = true;
-  returnStatement.return = true;
-  return returnStatement;
-  //   } catch (ignore) {
-  //     return the_error;
-  //   }
 };
 
 // The var statement declares a variable that can be assigned to with the let statement.

@@ -12,7 +12,11 @@ export type SyntaxKind =
   //Expressions
   | 'ArrayLiteralExpression'
   | 'FunctionLiteralExpression'
-  | 'RecordLiteralExpression';
+  | 'RecordLiteralExpression'
+  //Literals
+  | 'TextLiteral'
+  | 'NumberLiteral'
+  | 'Identifier';
 
 interface Expression {
   id: string;
@@ -20,6 +24,18 @@ interface Expression {
   line_nr: number;
   column_nr: number;
   column_to: number;
+}
+
+export interface Identifier extends Expression {
+  syntaxKind: 'Identifier';
+}
+
+export interface NumberLiteral extends Expression {
+  syntaxKind: 'NumberLiteral';
+}
+
+export interface TextLiteral extends Expression {
+  syntaxKind: 'TextLiteral';
 }
 
 export interface ArrayLiteralExpression extends Expression {
@@ -38,7 +54,7 @@ export interface FunctionLiteralExpression extends Expression {
   zeroth: any;
   wunth: any;
   twoth: any;
-  parent: object
+  parent: object;
 }
 
 export interface BreakStatement extends Statement {
