@@ -1,7 +1,9 @@
 import parse from './src/compiler/neo.parse';
 import tokenize from './src/compiler/neo.tokenize';
 import codegen from './src/compiler/neo.codegen';
-import { walk } from './utils/ast-visitor';
+import cylon_codegen from './src/compiler/cylon.codegen';
+import generator from './src/compiler/generator';
+
 import util from 'util';
 import fs from 'fs';
 import path from 'path';
@@ -83,17 +85,8 @@ function parse_code(content, filename) {
   let hrstart = process.hrtime();
   const tokenized = tokenize(content);
   const parsed = parse(tokenized, filename);
-  let entered = [];
-  let left = [];
-
-  walk(parsed, {
-    enter(node) {
-      entered.push(node);
-    },
-    leave(node) {
-      left.push(node);
-    },
-  });
+  const result = generator(parsed, { sourceMaps: true }, content);
+  console.log(result.map)
   let hrend = process.hrtime(hrstart);
   console.info('Execution time (hr): %ds %dms', hrend[0], hrend[1] / 1000000);
 

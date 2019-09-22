@@ -1,13 +1,27 @@
-function walk(ast, { enter, leave }) {
-  return visit(ast, null, enter, leave);
-}
+import { SyntaxKind } from '../src/compiler/NodesTypes';
 
+type Methods = {
+  [Tkey in SyntaxKind]?: {
+    enter: (this: typeof context, node, parent, prop, index) => void;
+    leave?: (this: typeof context, node, parent, prop, index) => void;
+  };
+};
+
+let methods = null;
 let should_skip = false;
 let replacement = null;
+
 const context = {
   skip: () => (should_skip = true),
   replace: node => (replacement = node),
+  code: (code, fun) => fun(code),
+  visit,
 };
+
+function walk(ast, the_methods: Methods) {
+  methods = the_methods;
+  return visit(ast, null);
+}
 
 const childKeys = {};
 
@@ -21,15 +35,16 @@ function replace(parent, prop, index, node) {
   }
 }
 
-function visit(node, parent, enter, leave, prop?, index?) {
+function visit(node, parent, prop?, index?) {
   if (node) {
+    const { enter, leave } = methods[node.syntaxKind] || {};
     if (enter) {
       const _should_skip = should_skip;
       const _replacement = replacement;
       should_skip = false;
       replacement = null;
 
-      enter.call(context, node, parent, prop, index);
+      node.content = enter.call(context, node, parent, prop, index);
 
       if (replacement) {
         node = replacement;
@@ -56,12 +71,10 @@ function visit(node, parent, enter, leave, prop?, index?) {
 
       if (Array.isArray(value)) {
         for (let j = 0; j < value.length; j += 1) {
-          value[j] &&
-            value[j].syntaxKind &&
-            visit(value[j], node, enter, leave, key, j);
+          value[j] && value[j].syntaxKind && visit(value[j], node, key, j);
         }
       } else if (value && value.syntaxKind) {
-        visit(value, node, enter, leave, key, null);
+        visit(value, node, key, null);
       }
     }
 

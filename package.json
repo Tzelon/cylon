@@ -33,6 +33,7 @@
   },
   "dependencies": {
     "fast-glob": "^3.0.4",
+    "jsesc": "^2.5.2",
     "worker-threads-pool": "^2.0.0"
   }
 }

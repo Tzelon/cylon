@@ -2,6 +2,7 @@ import {
   ArrayLiteralExpression,
   RecordLiteralExpression,
   FunctionLiteralExpression,
+  BinaryExpression,
   NumberLiteral,
   TextLiteral,
   Identifier,
@@ -25,9 +26,11 @@ function suffix(
   id: string,
   precedence: number,
   optional_parser = function infix(parser, left, the_token) {
-    the_token.zeroth = left;
-    the_token.wunth = expression(parser, precedence);
-    return the_token;
+    const binaryExpression = the_token as BinaryExpression;
+    binaryExpression.syntaxKind = 'BinaryExpression';
+    binaryExpression.zeroth = left;
+    binaryExpression.wunth = expression(parser, precedence);
+    return binaryExpression;
   }
 ) {
   // Make an infix or suffix operator.
@@ -543,21 +546,22 @@ export function parse_invocation(parser: Parser, left, the_paren) {
 }
 
 export function parse_literals(_parser: Parser, the_token: Token) {
+  let literalExpression;
   if (the_token.id === '(number)') {
-    const textLiteralExpression = the_token as NumberLiteral;
-    textLiteralExpression.syntaxKind = 'NumberLiteral';
-  } else if (the_token.id === '(number)') {
-    const textLiteralExpression = the_token as TextLiteral;
-    textLiteralExpression.syntaxKind = 'TextLiteral';
+    literalExpression = the_token as NumberLiteral;
+    literalExpression.syntaxKind = 'NumberLiteral';
+  } else if (the_token.id === '(text)') {
+    literalExpression = the_token as TextLiteral;
+    literalExpression.syntaxKind = 'TextLiteral';
   }
 
-  return the_token;
+  return literalExpression;
 }
 
 export function parse_identifier(_parser: Parser, the_token: Token) {
-  const textLiteralExpression = the_token as Identifier;
-  textLiteralExpression.syntaxKind = 'Identifier';
-  return the_token;
+  const identifier = the_token as Identifier;
+  identifier.syntaxKind = 'Identifier';
+  return identifier;
 }
 
 // prefix('module', function module_literal(the_module) {

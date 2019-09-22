@@ -9,10 +9,12 @@ export type SyntaxKind =
   | 'LoopStatement'
   | 'ReturnStatement'
   | 'LetStatement'
+  | 'ModuleStatement'
   //Expressions
   | 'ArrayLiteralExpression'
   | 'FunctionLiteralExpression'
   | 'RecordLiteralExpression'
+  | 'BinaryExpression'
   //Literals
   | 'TextLiteral'
   | 'NumberLiteral'
@@ -36,6 +38,13 @@ export interface NumberLiteral extends Expression {
 
 export interface TextLiteral extends Expression {
   syntaxKind: 'TextLiteral';
+  text: string;
+}
+
+export interface BinaryExpression extends Expression {
+  syntaxKind: 'BinaryExpression';
+  zeroth: any;
+  wunth: any;
 }
 
 export interface ArrayLiteralExpression extends Expression {
@@ -110,6 +119,12 @@ export interface IfStatement extends Statement {
 
 export interface LetStatement extends Statement {
   syntaxKind: 'LetStatement';
+  zeroth: any;
+  wunth: any;
+}
+
+export interface ModuleStatement extends Statement {
+  syntaxKind: 'ModuleStatement';
   zeroth: any;
   wunth: any;
 }

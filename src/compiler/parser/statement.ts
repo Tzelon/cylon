@@ -8,6 +8,8 @@ import {
   IfStatement,
   LetStatement,
   LoopStatement,
+  ModuleStatement,
+  Identifier,
 } from '../NodesTypes';
 import { Parser } from '../neo.parse';
 
@@ -28,6 +30,7 @@ interface ParseStatemets {
   loop: (the_loop, parser: Parser) => LoopStatement;
   return: (the_return, parser: Parser) => ReturnStatement;
   var: (the_var, parser: Parser) => VarStatement;
+  module: (the_var, parser: Parser) => ModuleStatement;
 }
 
 // The 'parse_statement' contain functions that do the specialized parsing.
@@ -279,8 +282,10 @@ parse_statement.var = function(the_var, parser) {
     return parser.error(parser.token, 'expected a name.');
   }
   parser.same_line();
-  varStatement.zeroth = parser.token;
-  parser.register(parser.token);
+  var identifier = parser.token as Identifier
+  identifier.syntaxKind = 'Identifier';
+  varStatement.zeroth = identifier;
+  parser.register(identifier);
   parser.advance();
   if (parser.token.id === ':') {
     parser.same_line();
@@ -288,6 +293,29 @@ parse_statement.var = function(the_var, parser) {
     varStatement.wunth = expression(parser);
   }
   return varStatement;
+};
+
+
+// The module statement declares a module. Module name can be separated with dots to indicate nesting.
+parse_statement.module = function(the_module, parser) {
+  const moduleStatement = the_module as ModuleStatement;
+  moduleStatement.syntaxKind = 'ModuleStatement';
+
+  if (!parser.token.alphameric) {
+    return parser.error(parser.token, 'expected a name.');
+  }
+  parser.same_line();
+  var identifier = parser.token as Identifier
+  identifier.syntaxKind = 'Identifier';
+  moduleStatement.zeroth = identifier;
+  parser.register(identifier);
+  parser.advance();
+  if (parser.token.id === '{') {
+    parser.same_line();
+    parser.advance('}');
+    moduleStatement.wunth = statements(parser);
+  }
+  return moduleStatement;
 };
 
 // The statements function parses statements, returing an array of statement tokens.

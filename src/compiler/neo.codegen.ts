@@ -297,9 +297,6 @@ function assert_boolean(thing) {
 }
 
 function module_statement(statement) {
-    if (statement.id !== 'def' || !is_module(statement)) {
-        throw 'codegen must get array of modules';
-    }
     create_module(statement.wunth);
 }
 
