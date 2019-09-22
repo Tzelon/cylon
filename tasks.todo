@@ -1,0 +1,11 @@
+Remember:
+    Tokenizer job is to parse the code string and output tokens
+    Parser job is to validate the syntax and create AST
+    SemanticAnalyzer job is to validate the scopes and types
+    Generator job is to generate Javascript 
+
+Generator: 
+    ☐ buffer.ts and source-map.ts need to be refactor for using Cylon parser output
+
+SemanticAnalyzer:
+    ☐ create it :) 
