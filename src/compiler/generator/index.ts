@@ -8,7 +8,7 @@ interface Options {
 class Generator extends Printer {
   constructor(ast: any, opts: Options, code: string) {
     const format = {}; // is the format options;
-    const map = opts.sourceMaps ? new SourceMap(opts, code) : null;
+    const map = opts.sourceMaps ? new SourceMap({sourceFileName: 'Dummy.cy'}, code) : null;
     super(format, map);
 
     this.ast = ast;

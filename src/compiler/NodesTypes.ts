@@ -23,9 +23,17 @@ export type SyntaxKind =
 interface Expression {
   id: string;
   syntaxKind: SyntaxKind;
-  line_nr: number;
-  column_nr: number;
-  column_to: number;
+  loc: {
+    identifierName?: string,
+    start: {
+      line: number;
+      column: number;
+    };
+    end: {
+      line: number;
+      column: number;
+    };
+  };
 }
 
 export interface Identifier extends Expression {

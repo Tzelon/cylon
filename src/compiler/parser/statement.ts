@@ -284,6 +284,7 @@ parse_statement.var = function(the_var, parser) {
   parser.same_line();
   var identifier = parser.token as Identifier
   identifier.syntaxKind = 'Identifier';
+  identifier.loc.identifierName = parser.token.id;
   varStatement.zeroth = identifier;
   parser.register(identifier);
   parser.advance();
@@ -325,7 +326,7 @@ export function statements(the_parser: Parser) {
   while (true) {
     if (
       the_parser.token === Parser.the_end ||
-      the_parser.token.column_nr < the_parser.indentation ||
+      the_parser.token.loc.start.column < the_parser.indentation ||
       the_parser.token.alphameric !== true
     ) {
       break;
@@ -340,7 +341,7 @@ export function statements(the_parser: Parser) {
     the_statement = parser(the_parser.prev_token, the_parser);
     statement_list.push(the_statement);
     if (the_statement.disrupt === true) {
-      if (the_parser.token.column_nr === the_parser.indentation) {
+      if (the_parser.token.loc.start.column === the_parser.indentation) {
         return the_parser.error(the_parser.token, 'unreachable');
       }
       break;

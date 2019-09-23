@@ -13,9 +13,11 @@ const readFile = util.promisify(fs.readFile);
 Promise.all(
   readCyFiles(path.resolve(process.cwd(), './experiments/cy-example'))
 ).then(programs => {
-  const modules = resolveModules(programs);
-  const jscode = codegen(modules[0]);
-  writeFiles(jscode[0]);
+  const { ast, code } = programs[0];
+  const result = generator(ast, { sourceMaps: true }, code);
+  // const modules = resolveModules(programs);
+  // const jscode = codegen(modules[0]);
+  writeFiles(result);
 });
 
 function resolveModules(programs) {
@@ -41,18 +43,19 @@ function nest_in_module(module_to_nest, target_module, nesting) {
 
 function writeFiles(mod, module_name = 'Main') {
   const mapFilename = module_name + '.js.map';
-  const output = mod.toStringWithSourceMap({ file: mapFilename });
+
+  // const output = mod.toStringWithSourceMap({ file: mapFilename });
   //We must add the //# sourceMappingURL comment directive
   //so that the browser’s debugger knows where to find the source map.
-  output.code += '\n//# sourceMappingURL=' + mapFilename;
+  mod.code += '\n//# sourceMappingURL=' + mapFilename;
   fs.writeFileSync(
     path.resolve(__dirname, `../dist/${module_name}.js`),
-    output.code,
+    mod.code,
     'utf-8'
   );
   fs.writeFileSync(
     path.resolve(__dirname, `../dist/${mapFilename}`),
-    output.map,
+    JSON.stringify(mod.map),
     'utf-8'
   );
   // if (Object.keys(mod.children).length !== 0) {
@@ -85,13 +88,11 @@ function parse_code(content, filename) {
   let hrstart = process.hrtime();
   const tokenized = tokenize(content);
   const parsed = parse(tokenized, filename);
-  const result = generator(parsed, { sourceMaps: true }, content);
-  console.log(result.map)
   let hrend = process.hrtime(hrstart);
   console.info('Execution time (hr): %ds %dms', hrend[0], hrend[1] / 1000000);
 
   if (parsed.id === '(error)') {
     console.error(util.inspect(parsed, true, 10000));
   }
-  return parsed;
+  return { ast: parsed, code: content };
 }

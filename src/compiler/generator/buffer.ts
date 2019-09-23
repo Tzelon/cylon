@@ -8,10 +8,6 @@ const SPACES_RE = /^[ \t]+$/;
  */
 
 export default class Buffer {
-  constructor(map) {
-    this._map = map;
-  }
-
   _map = null;
   _buf = [];
   _last = "";
@@ -21,6 +17,7 @@ export default class Buffer {
     line: 1,
     column: 0,
   };
+  
   _sourcePosition = {
     identifierName: null,
     line: null,
@@ -28,7 +25,12 @@ export default class Buffer {
     filename: null,
     force: false
   };
+
   _disallowedPop = null;
+
+  constructor(map) {
+    this._map = map;
+  }
 
   /**
    * Get the final string output from the buffer, along with the sourcemap if one exists.

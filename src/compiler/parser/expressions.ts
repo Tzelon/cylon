@@ -200,7 +200,8 @@ prefix('{', function recordliteral(parser, the_brace) {
   const properties = [];
   let key;
   let value;
-  const open = recordLiteralExpression.line_nr !== parser.token.line_nr;
+  const open =
+    recordLiteralExpression.loc.start.line !== parser.token.loc.start.line;
   if (open) {
     parser.indent();
   }
@@ -561,36 +562,9 @@ export function parse_literals(_parser: Parser, the_token: Token) {
 export function parse_identifier(_parser: Parser, the_token: Token) {
   const identifier = the_token as Identifier;
   identifier.syntaxKind = 'Identifier';
+  identifier.loc.identifierName = identifier.id;
   return identifier;
 }
-
-// prefix('module', function module_literal(the_module) {
-//   if (now_function.id !== '' && now_function.id !== 'module') {
-//     return error(the_module, 'Do not make modules inside function.');
-//   }
-
-//   if (loop.length > 0) {
-//     return error(the_module, 'Do not make functions in loops.');
-//   }
-
-//   the_module.filename = the_filename;
-//   // Creating new scope.
-//   the_module.scope = Object.create(null);
-//   the_module.parent = now_function;
-//   // Changing scopes.
-//   now_function = the_module;
-
-//   advance('{');
-//   indent();
-//   the_module.zeroth = statements();
-//   outdent();
-//   at_indentation();
-//   advance('}');
-
-//   // Change scope back to parent
-//   now_function = the_module.parent;
-//   return the_module;
-// });
 
 Object.freeze(parse_prefix);
 Object.freeze(parse_suffix);
@@ -648,7 +622,7 @@ export function argument_expression(
     the_token = parser.token;
     definition = parse_suffix[the_token.id];
     if (
-      parser.token.column_nr < parser.indentation ||
+      parser.token.loc.start.column < parser.indentation ||
       (!open && parser.is_line_break()) ||
       definition === undefined ||
       definition.precedence <= precedence

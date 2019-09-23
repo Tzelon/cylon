@@ -19,9 +19,16 @@ export class Parser {
   static the_end = Object.freeze({
     id: '(end)',
     precedence: 0,
-    column_nr: 0,
-    column_to: 0,
-    line_nr: 1,
+    loc: {
+      start: {
+          line: 1,
+          column: 0
+      },
+      end: {
+          line: 1,
+          column: 0
+      }
+  },
   });
 
   constructor(filename: string, token_generator: ReturnType<typeof generator>) {
@@ -176,14 +183,14 @@ export class Parser {
   }
 
   at_indentation() {
-    if (this.token.column_nr !== this.indentation) {
+    if (this.token.loc.start.column !== this.indentation) {
       return this.error(this.token, 'expected at ' + this.indentation);
     }
     return true;
   }
 
   is_line_break() {
-    return this.token.line_nr !== this.prev_token.line_nr;
+    return this.token.loc.start.line !== this.prev_token.loc.start.line;
   }
 
   same_line() {

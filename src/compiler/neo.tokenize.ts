@@ -14,8 +14,17 @@ import big_float from '../runtime/numbers/big_float';
 
 interface BaseToken {
     id: string;
-    line_nr: number;
-    column_nr: number;
+    identifierName?: string,
+    loc:  {
+        start: {
+            line: number,
+            column: number
+        },
+        end: {
+            line: number,
+            column: number
+        }
+    }
     alphameric?: boolean;
     origin?: any;
     readonly?: boolean;
@@ -36,7 +45,7 @@ interface CommentToken extends BaseToken {
 
 export interface NameToken extends BaseToken {
     alphameric: boolean;
-    column_to: number;
+    
 }
 
 interface NumberToken extends BaseToken {
@@ -44,18 +53,18 @@ interface NumberToken extends BaseToken {
     readonly: boolean;
     number: number;
     text: string;
-    column_to: number;
+    
 }
 
 interface TextToken extends BaseToken {
     id: '(text)';
     readonly: boolean;
     text: string;
-    column_to: number;
+    
 }
 
 interface PunctuatorToken extends BaseToken {
-    column_to: number;
+    
 }
 
 export type Token = ErrorToken | CommentToken | NameToken | NumberToken | TextToken | PunctuatorToken;
@@ -113,8 +122,16 @@ export default Object.freeze(function tokenize(source: string | string[], commen
         if (!captives) {
             return {
                 id: '(error)',
-                line_nr,
-                column_nr,
+                loc: {
+                    start: {
+                        line: line_nr,
+                        column: column_nr
+                    },
+                    end: {
+                        line: line_nr,
+                        column: rx_token.lastIndex
+                    }
+                },
                 string: line.slice(column_nr)
             };
         }
@@ -132,9 +149,16 @@ export default Object.freeze(function tokenize(source: string | string[], commen
                 ? {
                       id: '(comment)',
                       comment: captives[2],
-                      line_nr,
-                      column_nr,
-                      column_to: rx_token.lastIndex
+                      loc: {
+                        start: {
+                            line: line_nr,
+                            column: column_nr
+                        },
+                        end: {
+                            line: line_nr,
+                            column: rx_token.lastIndex
+                        }
+                      }
                   }
                 : token_generator();
         }
@@ -145,9 +169,16 @@ export default Object.freeze(function tokenize(source: string | string[], commen
             return {
                 id: captives[3],
                 alphameric: true,
-                line_nr,
-                column_nr,
-                column_to: rx_token.lastIndex
+                loc: {
+                    start: {
+                        line: line_nr,
+                        column: column_nr
+                    },
+                    end: {
+                        line: line_nr,
+                        column: rx_token.lastIndex
+                    }
+                },
             };
         }
 
@@ -159,9 +190,16 @@ export default Object.freeze(function tokenize(source: string | string[], commen
                 readonly: true,
                 number: big_float.normalize(big_float.make(captives[4])),
                 text: captives[4],
-                line_nr,
-                column_nr,
-                column_to: rx_token.lastIndex
+                loc: {
+                    start: {
+                        line: line_nr,
+                        column: column_nr
+                    },
+                    end: {
+                        line: line_nr,
+                        column: rx_token.lastIndex
+                    }
+                },
             };
         }
 
@@ -179,9 +217,16 @@ export default Object.freeze(function tokenize(source: string | string[], commen
                         return String.fromCodePoint(parseInt(code, 16));
                     })
                 ),
-                line_nr,
-                column_nr,
-                column_to: rx_token.lastIndex
+                loc: {
+                    start: {
+                        line: line_nr,
+                        column: column_nr
+                    },
+                    end: {
+                        line: line_nr,
+                        column: rx_token.lastIndex
+                    }
+                },
             };
         }
 
@@ -190,9 +235,16 @@ export default Object.freeze(function tokenize(source: string | string[], commen
         if (captives[6]) {
             return {
                 id: captives[6],
-                line_nr,
-                column_nr,
-                column_to: rx_token.lastIndex
+                loc: {
+                    start: {
+                        line: line_nr,
+                        column: column_nr
+                    },
+                    end: {
+                        line: line_nr,
+                        column: rx_token.lastIndex
+                    }
+                },
             };
         }
     };

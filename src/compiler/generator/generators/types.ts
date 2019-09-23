@@ -1,6 +1,4 @@
 import {
-  ArrayLiteralExpression,
-  NumberLiteral,
   TextLiteral,
   Identifier,
 } from '../../NodesTypes';
@@ -21,7 +19,7 @@ export function TextLiteral(this: Printer, node: TextLiteral) {
 }
 
 export function Identifier(this: Printer, node: Identifier) {
-  this.exactSource({ column_nr: node.column_nr, line_nr: node.line_nr }, () => {
+  this.exactSource(node.loc, () => {
     this.word(node.id);
   });
 }

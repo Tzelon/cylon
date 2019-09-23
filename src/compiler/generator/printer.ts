@@ -263,15 +263,7 @@ export default class Printer {
 
     this._printStack.push(node);
 
-    const loc =
-      node.syntaxKind === 'ModuleStatement'
-        ? null
-        : {
-            start: { line: node.line_nr, column: node.column_nr },
-            end: { line: node.line_nr, column: node.column_to },
-            identifierName: node.syntaxKind === 'Identifier' ? node.id : null,
-            filename: 'Dummy.cy'
-          };
+    const loc = node.syntaxKind === 'ModuleStatement' ? null : node.loc;
     this.withSource('start', loc, () => {
       printMethod.call(this, node, parent);
     });

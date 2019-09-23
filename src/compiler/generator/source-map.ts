@@ -99,7 +99,7 @@ export default class SourceMap {
         line == null
           ? undefined
           : {
-              line: line,
+              line: line + 1, //source line start with 0. mapping need to start with 1
               column: column,
             },
     });

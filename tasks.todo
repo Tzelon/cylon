@@ -1,7 +1,8 @@
 Remember:
     Tokenizer job is to parse the code string and output tokens
     Parser job is to validate the syntax and create AST
-    SemanticAnalyzer job is to validate the scopes and types
+    ModuleResolver job is to order the modules in seprate ASTs
+    SemanticAnalyzer job is to validate the scopes and types 
     Generator job is to generate Javascript 
 
 Generator: 
