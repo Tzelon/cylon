@@ -1,4 +1,6 @@
+import jsesc from 'jsesc';
 import $NEO from '../../../runtime/neo.runtime';
+import { make_set } from '../../utils';
 import {
   FunctionLiteralExpression,
   ArrayLiteralExpression,
@@ -15,15 +17,15 @@ export function FunctionLiteralExpression(
   this.token('(');
   node.zeroth.forEach((param, index) => {
     if (param.id === '...') {
-      this.token('...' + mangle(param.zeroth.id));
+      this.token('...' + this.mangle(param.zeroth.id));
     } else if (param.id === '|') {
-      this.token(mangle(param.zeroth.id));
+      this.token(this.mangle(param.zeroth.id));
       this.space();
       this.token('=');
       this.space();
       this.print(param.wunth, node);
     } else {
-      this.token(mangle(param.id));
+      this.token(this.mangle(param.id));
     }
 
     if (index < node.zeroth.length - 1) {
@@ -73,6 +75,51 @@ export function ArrayLiteralExpression(
   }
 }
 
+export function RecordLiteralExpression(
+  this: Printer,
+  node: RecordLiteralExpression
+) {
+  if (node.id === '{}') {
+    this.token('Object.create(null)');
+  } else {
+    this.indent();
+    this.token('(function(o) ');
+    this.token('{');
+    this.newline();
+    node.zeroth.forEach(element => {
+      if (typeof element.zeroth.text === 'string') {
+        this.withSource('start', element.zeroth.loc, () => {
+          this.token('o[');
+          this.token(jsesc(element.zeroth.text, { json: true }));
+          this.token(']');
+          this.space();
+          this.token('=');
+          this.space();
+          this.print(element.wunth, node);
+          this.semicolon();
+        });
+      } else {
+        this.withSource('start', element.zeroth.loc, () => {
+          this.token('$NEO.set(o, ');
+          this.print(element.zeroth, node);
+          this.token(',');
+          this.space();
+          this.print(element.wunth, node);
+          this.token(')');
+          this.semicolon();
+        });
+      }
+      this.newline();
+    });
+    this.token('return o');
+    this.semicolon();
+    this.newline();
+    this.outdent();
+    this.token('}');
+    this.token('(Object.create(null)))');
+  }
+}
+
 export function BinaryExpression(this: Printer, node: BinaryExpression) {
   const transform = operator_transform[node.id];
   if (typeof transform === 'string') {
@@ -86,19 +133,6 @@ export function BinaryExpression(this: Printer, node: BinaryExpression) {
   } else {
     transform(this, node);
   }
-}
-
-const rx_exclamation_question = /[\\!?]/g;
-const reserved = [];
-function mangle(name) {
-  // JavaScript does not allow ! or '?' in identifiers, so we
-  // replace them with '_'. We give reserved words a '$' prefix.
-
-  //  So 'what_me_worry?' becomes 'what_me_worry_', and 'class' becomes '$class'.
-
-  return reserved[name] === true
-    ? '$' + name
-    : name.replace(rx_exclamation_question, '_');
 }
 
 const operator_transform = $NEO.stone({
@@ -161,14 +195,6 @@ function assert_boolean(printer: Printer, node: any) {
     printer.print(node, null);
     printer.token(')');
   }
-}
-
-function make_set(array, value = true) {
-  const object = Object.create(null);
-  array.forEach(function(element) {
-    object[element] = value;
-  });
-  return $NEO.stone(object);
 }
 
 const boolean_operator = make_set([

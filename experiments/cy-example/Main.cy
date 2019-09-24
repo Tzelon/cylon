@@ -1,6 +1,12 @@
 module MyExample {
     def fun2: ƒ  {
-        var g: (1 + 3) / 2 = 1 /\ 1 = 2
+        def x: {}
+
+        var g: {
+            "1": x  
+            [x]: "helo"
+        }
+        
         return g
     }
 }

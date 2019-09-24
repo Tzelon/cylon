@@ -2,8 +2,10 @@ import big_float from '../../runtime/numbers/big_float';
 import SourceMap from './source-map';
 import Buffer from './buffer';
 import * as generatorFunctions from './generators';
+import js_reserved from './javascript-reserved-words';
 
 const MINUS_POINT = /[\-.]/g;
+const EXCLAMATION_QUESTION = /[\\!?]/g;
 
 export type Format = {
   shouldPrintComment: (comment: string) => boolean;
@@ -126,6 +128,17 @@ export default class Printer {
     this._endsWithWord = true;
   }
 
+  mangle(name) {
+    // JavaScript does not allow ! or '?' in identifiers, so we
+    // replace them with '_'. We give reserved words a '$' prefix.
+
+    //  So 'what_me_worry?' becomes 'what_me_worry_', and 'class' becomes '$class'.
+
+    return js_reserved[name] === true
+      ? '$' + name
+      : name.replace(EXCLAMATION_QUESTION, '_');
+  }
+
   numgle(number) {
     // We make big decimal literals look as natural as possible by making them into
     // constants. A constant name start with '$'. A '-' or '.' is replaced with '_'.
@@ -135,8 +148,8 @@ export default class Printer {
 
     const text = big_float.string(number);
     const name = '$' + text.replace(MINUS_POINT, '_');
-    
-    // If name is not created yet we return the front_matter. 
+
+    // If name is not created yet we return the front_matter.
     // This is probably called from modules generator
     if (this._uniqueName[name] !== true) {
       this._uniqueName[name] = true;
@@ -265,7 +278,7 @@ export default class Printer {
     }
 
     this._printStack.push(node);
-    const isModule = node.syntaxKind === 'ModuleStatement';
+  
     const loc = node.syntaxKind === 'ModuleStatement' ? null : node.loc;
     this.withSource('start', loc, () => {
       printMethod.call(this, node, parent);

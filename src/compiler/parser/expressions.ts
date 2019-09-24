@@ -230,9 +230,7 @@ prefix('{', function recordliteral(parser, the_brace) {
             return parser.error(key, 'expected a variable');
           }
         }
-        key = key.id;
       } else if (key.id === '(text)') {
-        key = key.text;
         parser.same_line();
         parser.advance(':');
         value = expression(parser);
@@ -266,7 +264,7 @@ prefix('{', function recordliteral(parser, the_brace) {
   return recordLiteralExpression;
 });
 
-prefix('{}', function emptyrecordliteral(the_braces) {
+prefix('{}', function emptyrecordliteral(_parser, the_braces) {
   const recordLiteralExpression = the_braces as RecordLiteralExpression;
   recordLiteralExpression.syntaxKind = 'RecordLiteralExpression';
 
