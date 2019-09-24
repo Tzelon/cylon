@@ -1,12 +1,8 @@
-import isInteger from 'lodash/isInteger';
 import big_float from '../../runtime/numbers/big_float';
 import SourceMap from './source-map';
 import Buffer from './buffer';
 import * as generatorFunctions from './generators';
 
-const SCIENTIFIC_NOTATION = /e/i;
-const ZERO_DECIMAL_INTEGER = /\.0+$/;
-const NON_DECIMAL_LITERAL = /^0[box]/;
 const MINUS_POINT = /[\-.]/g;
 
 export type Format = {
@@ -42,16 +38,12 @@ export default class Printer {
   _printedComments = new WeakSet();
   _endsWithInteger = false;
   _endsWithWord = false;
-  _unique = Object.create(null);
-  _now_module;
+  _uniqueName = Object.create(null);
+  _now_function = null;
 
   constructor(format: Format | {}, map: SourceMap) {
     this.format = format || {};
     this._buf = new Buffer(map);
-    this._now_module = {
-      children: [],
-      front_matter: ['import $NEO from "./neo.runtime.js"\n'],
-    };
   }
 
   generate(ast) {
@@ -74,6 +66,20 @@ export default class Printer {
 
   outdent(): void {
     this._indentation -= 4;
+  }
+  /**
+   * Get the current indent.
+   */
+
+  _getIndent(): string {
+    return ' '.repeat(this._indentation);
+  }
+
+  _maybeIndent(str: string): void {
+    // we've got a newline before us so prepend on the indentation
+    if (this.endsWith('\n') && str[0] !== '\n') {
+      this._buf.queue(this._getIndent());
+    }
   }
 
   /**
@@ -127,14 +133,16 @@ export default class Printer {
     //  So, '1' becomes '$1', '98.6' becomes '$98_6', and '-1.011e-5' becomes
     //  '$_1_011e_5'.
 
-    const text = big_float.string(number.number);
+    const text = big_float.string(number);
     const name = '$' + text.replace(MINUS_POINT, '_');
-    if (this._unique[name] !== true) {
-      this._unique[name] = true;
-      this._now_module.front_matter.push(
-        'const ' + name + ' = $NEO.number("' + text + '");\n'
-      );
+    
+    // If name is not created yet we return the front_matter. 
+    // This is probably called from modules generator
+    if (this._uniqueName[name] !== true) {
+      this._uniqueName[name] = true;
+      return 'const ' + name + ' = $NEO.number("' + text + '");';
     }
+    // Else we return the name
     return name;
   }
 
@@ -142,17 +150,10 @@ export default class Printer {
    * Writes a number token so that we can validate if it is an integer.
    */
 
-  number(str: string): void {
-    this.word(str);
+  number(number: any): void {
+    const name = this.numgle(number);
 
-    // Integer tokens need special handling because they cannot have '.'s inserted
-    // immediately after them.
-    this._endsWithInteger =
-      isInteger(+str) &&
-      !NON_DECIMAL_LITERAL.test(str) &&
-      !SCIENTIFIC_NOTATION.test(str) &&
-      !ZERO_DECIMAL_INTEGER.test(str) &&
-      str[str.length - 1] !== '.';
+    this.word(name);
   }
 
   /**
@@ -221,6 +222,23 @@ export default class Printer {
     this._buf.withSource(prop, loc, cb);
   }
 
+  withFrontMatter(cb: () => void) {
+    const new_now_function = {
+      front_matter: [],
+      parent: this._now_function,
+    };
+    this._now_function = new_now_function;
+    const frontLine = this._buf.bufferLength();
+    cb();
+    this._buf.withFrontMatter(frontLine, this._now_function.front_matter);
+
+    this._now_function = this._now_function.parent;
+  }
+
+  addFrontMatter(str) {
+    this._now_function.front_matter.push(str);
+  }
+
   _space(): void {
     this._append(' ', true /* queue */);
   }
@@ -230,6 +248,8 @@ export default class Printer {
   }
 
   _append(str: string, queue: boolean = false) {
+    this._maybeIndent(str);
+
     if (queue) this._buf.queue(str);
     else this._buf.append(str);
 
@@ -262,7 +282,7 @@ export default class Printer {
     }
 
     this._printStack.push(node);
-
+    const isModule = node.syntaxKind === 'ModuleStatement';
     const loc = node.syntaxKind === 'ModuleStatement' ? null : node.loc;
     this.withSource('start', loc, () => {
       printMethod.call(this, node, parent);
@@ -275,16 +295,12 @@ export default class Printer {
   printJoin(nodes: any[], parent) {
     if (!nodes.length) return;
 
-    this.indent();
-
     for (let i = 0; i < nodes.length; i++) {
       const node = nodes[i];
       if (!node) continue;
 
       this.print(node, parent);
     }
-
-    this.outdent();
   }
 }
 

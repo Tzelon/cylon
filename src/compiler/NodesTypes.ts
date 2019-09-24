@@ -42,6 +42,7 @@ export interface Identifier extends Expression {
 
 export interface NumberLiteral extends Expression {
   syntaxKind: 'NumberLiteral';
+  number: any
 }
 
 export interface TextLiteral extends Expression {
@@ -135,6 +136,7 @@ export interface ModuleStatement extends Statement {
   syntaxKind: 'ModuleStatement';
   zeroth: any;
   wunth: any;
+  front_matter: string[];
 }
 
 export interface LoopStatement extends Statement {

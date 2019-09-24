@@ -64,7 +64,7 @@ export default class SourceMap {
     column: number,
     identifierName?: string,
     filename?: string,
-    force?: boolean,
+    force?: boolean
   ) {
     // Adding an empty mapping at the start of a generated line just clutters the map.
     if (this._lastGenLine !== generatedLine && line === null) return;

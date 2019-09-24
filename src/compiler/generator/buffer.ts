@@ -1,3 +1,4 @@
+import SourceMap from './source-map';
 const SPACES_RE = /^[ \t]+$/;
 
 /**
@@ -8,22 +9,22 @@ const SPACES_RE = /^[ \t]+$/;
  */
 
 export default class Buffer {
-  _map = null;
+  _map?: SourceMap = null;
   _buf = [];
-  _last = "";
+  _last = '';
   _queue = [];
 
   _position = {
     line: 1,
     column: 0,
   };
-  
+
   _sourcePosition = {
     identifierName: null,
     line: null,
     column: null,
     filename: null,
-    force: false
+    force: false,
   };
 
   _disallowedPop = null;
@@ -43,7 +44,7 @@ export default class Buffer {
     const result = {
       // Whatever trim is used here should not execute a regex against the
       // source string since it may be arbitrarily large after all transformations
-      code: this._buf.join("").trimRight(),
+      code: this._buf.join('').trimRight(),
       map: null,
       rawMappings: map && map.getRawMappings(),
     };
@@ -51,14 +52,14 @@ export default class Buffer {
     if (map) {
       // The `.map` property is lazy to allow callers to use the raw mappings
       // without any overhead
-      Object.defineProperty(result, "map", {
+      Object.defineProperty(result, 'map', {
         configurable: true,
         enumerable: true,
         get() {
           return (this.map = map.get());
         },
         set(value) {
-          Object.defineProperty(this, "map", { value, writable: true });
+          Object.defineProperty(this, 'map', { value, writable: true });
         },
       });
     }
@@ -88,7 +89,7 @@ export default class Buffer {
 
   queue(str: string): void {
     // Drop trailing spaces when a newline is inserted.
-    if (str === "\n") {
+    if (str === '\n') {
       while (this._queue.length > 0 && SPACES_RE.test(this._queue[0][0])) {
         this._queue.shift();
       }
@@ -116,10 +117,10 @@ export default class Buffer {
     column: number,
     identifierName?: string,
     filename?: string,
-    force?: boolean,
+    force?: boolean
   ): void {
     // If there the line is ending, adding a new mapping marker is redundant
-    if (this._map && str[0] !== "\n") {
+    if (this._map && str[0] !== '\n') {
       this._map.mark(
         this._position.line,
         this._position.column,
@@ -127,7 +128,7 @@ export default class Buffer {
         column,
         identifierName,
         filename,
-        force,
+        force
       );
     }
 
@@ -135,7 +136,7 @@ export default class Buffer {
     this._last = str[str.length - 1];
 
     for (let i = 0; i < str.length; i++) {
-      if (str[i] === "\n") {
+      if (str[i] === '\n') {
         this._position.line++;
         this._position.column = 0;
       } else {
@@ -145,13 +146,13 @@ export default class Buffer {
   }
 
   removeTrailingNewline(): void {
-    if (this._queue.length > 0 && this._queue[0][0] === "\n") {
+    if (this._queue.length > 0 && this._queue[0][0] === '\n') {
       this._queue.shift();
     }
   }
 
   removeLastSemicolon(): void {
-    if (this._queue.length > 0 && this._queue[0][0] === ";") {
+    if (this._queue.length > 0 && this._queue[0][0] === ';') {
       this._queue.shift();
     }
   }
@@ -171,7 +172,7 @@ export default class Buffer {
     }
 
     const end =
-      this._last + this._queue.reduce((acc, item) => item[0] + acc, "");
+      this._last + this._queue.reduce((acc, item) => item[0] + acc, '');
     if (suffix.length <= end.length) {
       return end.slice(-suffix.length) === suffix;
     }
@@ -183,6 +184,14 @@ export default class Buffer {
 
   hasContent(): boolean {
     return this._queue.length > 0 || !!this._last;
+  }
+
+  withFrontMatter(frontLine: number, strs: string[]) {
+    this._buf.splice(frontLine + 1, 0, ...strs);
+  }
+
+  bufferLength() {
+    return this._buf.length;
   }
 
   /**
@@ -213,7 +222,7 @@ export default class Buffer {
     // identifier itself, the current active location could already be the
     // start of this range. We use 'force' here to explicitly start a new
     // mapping range for this new token.
-    this.source("start", loc, true /* force */);
+    this.source('start', loc, true /* force */);
 
     cb();
 
@@ -224,8 +233,8 @@ export default class Buffer {
     // logic. This means that if another item calls '.source()' to set
     // the location after the identifier, it is fine, but the position won't
     // be automatically replaced with the previous value.
-    this.source("end", loc);
-    this._disallowPop("start", loc);
+    this.source('end', loc);
+    this._disallowPop('start', loc);
   }
 
   /**
@@ -293,12 +302,7 @@ export default class Buffer {
     this._disallowedPop = this._normalizePosition(prop, loc);
   }
 
-  _normalizePosition(
-    prop: string,
-    loc: any,
-    targetObj?: any,
-    force?: boolean,
-  ) {
+  _normalizePosition(prop: string, loc: any, targetObj?: any, force?: boolean) {
     const pos = loc ? loc[prop] : null;
 
     if (targetObj === undefined) {
@@ -317,7 +321,7 @@ export default class Buffer {
     const origFilename = targetObj.filename;
 
     targetObj.identifierName =
-      (prop === "start" && loc && loc.identifierName) || null;
+      (prop === 'start' && loc && loc.identifierName) || null;
     targetObj.line = pos ? pos.line : null;
     targetObj.column = pos ? pos.column : null;
     targetObj.filename = (loc && loc.filename) || null;
@@ -336,8 +340,8 @@ export default class Buffer {
   }
 
   getCurrentColumn(): number {
-    const extra = this._queue.reduce((acc, item) => item[0] + acc, "");
-    const lastIndex = extra.lastIndexOf("\n");
+    const extra = this._queue.reduce((acc, item) => item[0] + acc, '');
+    const lastIndex = extra.lastIndexOf('\n');
 
     return lastIndex === -1
       ? this._position.column + extra.length
@@ -345,11 +349,11 @@ export default class Buffer {
   }
 
   getCurrentLine(): number {
-    const extra = this._queue.reduce((acc, item) => item[0] + acc, "");
+    const extra = this._queue.reduce((acc, item) => item[0] + acc, '');
 
     let count = 0;
     for (let i = 0; i < extra.length; i++) {
-      if (extra[i] === "\n") count++;
+      if (extra[i] === '\n') count++;
     }
 
     return this._position.line + count;

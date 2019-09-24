@@ -10,3 +10,6 @@ Generator:
 
 SemanticAnalyzer:
     ☐ create it :) 
+
+Parser: 
+    ☐ Problem with parsing default value in function params

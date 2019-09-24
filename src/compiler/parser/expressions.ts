@@ -549,8 +549,9 @@ export function parse_invocation(parser: Parser, left, the_paren) {
 export function parse_literals(_parser: Parser, the_token: Token) {
   let literalExpression;
   if (the_token.id === '(number)') {
-    literalExpression = the_token as NumberLiteral;
+    literalExpression = the_token as NumberLiteral
     literalExpression.syntaxKind = 'NumberLiteral';
+    _parser.now_module.front_matter.push(literalExpression.number);
   } else if (the_token.id === '(text)') {
     literalExpression = the_token as TextLiteral;
     literalExpression.syntaxKind = 'TextLiteral';

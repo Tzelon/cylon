@@ -257,6 +257,7 @@ export default function parse(
       id: '',
       syntaxKind: 'ModuleStatement',
       zeroth: null,
+      front_matter: ['import $NEO from "./neo.runtime.js"']
     };
     the_parser.set_now_module(mod);
     the_parser.advance();

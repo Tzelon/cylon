@@ -1,7 +1,5 @@
 import parse from './src/compiler/neo.parse';
 import tokenize from './src/compiler/neo.tokenize';
-import codegen from './src/compiler/neo.codegen';
-import cylon_codegen from './src/compiler/cylon.codegen';
 import generator from './src/compiler/generator';
 
 import util from 'util';

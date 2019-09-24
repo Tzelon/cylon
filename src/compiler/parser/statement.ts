@@ -9,7 +9,6 @@ import {
   LetStatement,
   LoopStatement,
   ModuleStatement,
-  Identifier,
 } from '../NodesTypes';
 import { Parser } from '../neo.parse';
 
@@ -18,6 +17,7 @@ import {
   parse_dot,
   parse_subscript,
   parse_invocation,
+  parse_identifier,
 } from './expressions';
 
 interface ParseStatemets {
@@ -79,8 +79,8 @@ parse_statement.def = function(the_def, parser) {
   }
   parser.same_line();
   const is_dotted_name = parser.advance_dots(parser.token);
-  defStatement.zeroth = parser.token;
-  parser.register(parser.token, true);
+  defStatement.zeroth = parse_identifier(parser, parser.token);
+  parser.register(defStatement.zeroth, true);
   parser.advance();
   parser.same_line();
   parser.advance(':');
@@ -282,11 +282,8 @@ parse_statement.var = function(the_var, parser) {
     return parser.error(parser.token, 'expected a name.');
   }
   parser.same_line();
-  var identifier = parser.token as Identifier
-  identifier.syntaxKind = 'Identifier';
-  identifier.loc.identifierName = parser.token.id;
-  varStatement.zeroth = identifier;
-  parser.register(identifier);
+  varStatement.zeroth = parse_identifier(parser, parser.token);
+  parser.register(varStatement.zeroth);
   parser.advance();
   if (parser.token.id === ':') {
     parser.same_line();
@@ -295,7 +292,6 @@ parse_statement.var = function(the_var, parser) {
   }
   return varStatement;
 };
-
 
 // The module statement declares a module. Module name can be separated with dots to indicate nesting.
 parse_statement.module = function(the_module, parser) {
@@ -306,10 +302,8 @@ parse_statement.module = function(the_module, parser) {
     return parser.error(parser.token, 'expected a name.');
   }
   parser.same_line();
-  var identifier = parser.token as Identifier
-  identifier.syntaxKind = 'Identifier';
-  moduleStatement.zeroth = identifier;
-  parser.register(identifier);
+  moduleStatement.zeroth = parse_identifier(parser, parser.token);
+  parser.register(moduleStatement.zeroth);
   parser.advance();
   if (parser.token.id === '{') {
     parser.same_line();

@@ -1,7 +1,13 @@
 import { ModuleStatement } from '../../NodesTypes';
 import Printer from '../printer';
 export function ModuleStatement(this: Printer, node: ModuleStatement) {
-    this.token('import $NEO from "./neo.runtime.js"');
+  node.front_matter.forEach(line => {
+    if (typeof line === 'string') {
+      this.token(line);
+    } else {
+      this.token(this.numgle(line));
+    }
     this.newline();
-    this.printJoin(node.zeroth, node)
+  });
+  this.printJoin(node.zeroth, node);
 }
