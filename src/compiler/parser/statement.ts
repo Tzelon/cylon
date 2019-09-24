@@ -10,7 +10,7 @@ import {
   LoopStatement,
   ModuleStatement,
 } from '../NodesTypes';
-import { Parser } from '../neo.parse';
+import { Parser } from '../parser';
 
 import {
   expression,
@@ -304,12 +304,22 @@ parse_statement.module = function(the_module, parser) {
   parser.same_line();
   moduleStatement.zeroth = parse_identifier(parser, parser.token);
   parser.register(moduleStatement.zeroth);
+  moduleStatement.parent = parser.get_now_module();
+  moduleStatement.front_matter = new Map([['runtime', 'import $NEO from "./neo.runtime.js"']]);
+  //set new module before parse it's statements
+  parser.set_now_module(moduleStatement);
+  
   parser.advance();
-  if (parser.token.id === '{') {
-    parser.same_line();
-    parser.advance('}');
-    moduleStatement.wunth = statements(parser);
-  }
+  parser.advance('{');
+  parser.indent();
+  moduleStatement.wunth = statements(parser);
+  parser.outdent();
+  parser.at_indentation();
+  parser.advance('}');
+
+  //return to parent module
+  parser.set_now_module(parser.get_now_module().parent);
+
   return moduleStatement;
 };
 
@@ -327,11 +337,15 @@ export function statements(the_parser: Parser) {
     }
     the_parser.at_indentation();
     the_parser.advance();
+
+    if (the_parser.prev_token.id !== 'module' && !the_parser.get_now_module()) {
+      the_parser.error(the_parser.prev_token, 'Must be inside a module');
+    }
+
     let parser = parse_statement[the_parser.prev_token.id];
     if (parser === undefined) {
       return the_parser.error(the_parser.prev_token, 'expected a statement');
     }
-    // prev_token.class = 'statement';
     the_statement = parser(the_parser.prev_token, the_parser);
     statement_list.push(the_statement);
     if (the_statement.disrupt === true) {

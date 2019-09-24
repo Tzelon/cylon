@@ -76,12 +76,14 @@ const rel_op = Object.create(null);
 function relational(operator) {
   rel_op[operator] = true;
   return suffix(operator, 333, function(parser, left, the_token) {
-    the_token.zeroth = left;
-    the_token.wunth = expression(parser, 333);
+    const binaryExpression = the_token as BinaryExpression;
+    binaryExpression.syntaxKind = 'BinaryExpression';
+    binaryExpression.zeroth = left;
+    binaryExpression.wunth = expression(parser, 333);
     if (rel_op[parser.token.id] === true) {
       return parser.error(parser.token, 'unexpected relational operator');
     }
-    return the_token;
+    return binaryExpression;
   });
 }
 
@@ -180,7 +182,7 @@ prefix('[', function arrayliteral(parser, the_bracket) {
   return arrayLiteralExpression;
 });
 
-prefix('[]', function emptyarrayliteral(the_brackets) {
+prefix('[]', function emptyarrayliteral(_parser, the_brackets) {
   const arrayLiteralExpression = the_brackets as ArrayLiteralExpression;
   arrayLiteralExpression.syntaxKind = 'ArrayLiteralExpression';
 
@@ -551,7 +553,7 @@ export function parse_literals(_parser: Parser, the_token: Token) {
   if (the_token.id === '(number)') {
     literalExpression = the_token as NumberLiteral
     literalExpression.syntaxKind = 'NumberLiteral';
-    _parser.now_module.front_matter.push(literalExpression.number);
+    _parser.now_module.front_matter.set(literalExpression.text, literalExpression.number);
   } else if (the_token.id === '(text)') {
     literalExpression = the_token as TextLiteral;
     literalExpression.syntaxKind = 'TextLiteral';

@@ -9,5 +9,5 @@ export function ModuleStatement(this: Printer, node: ModuleStatement) {
     }
     this.newline();
   });
-  this.printJoin(node.zeroth, node);
+  this.printJoin(node.wunth, node);
 }

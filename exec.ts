@@ -1,5 +1,4 @@
-import parse from './src/compiler/neo.parse';
-import tokenize from './src/compiler/neo.tokenize';
+import parse from './src/compiler/parser';
 import generator from './src/compiler/generator';
 
 import util from 'util';
@@ -10,9 +9,9 @@ const readFile = util.promisify(fs.readFile);
 
 Promise.all(
   readCyFiles(path.resolve(process.cwd(), './experiments/cy-example'))
-).then(programs => {
-  const { ast, code } = programs[0];
-  const result = generator(ast, { sourceMaps: true }, code);
+).then(files => {
+  const { asts, code } = files[0];
+  const result = generator(asts[0], { sourceMaps: true }, code);
   // const modules = resolveModules(programs);
   // const jscode = codegen(modules[0]);
   writeFiles(result);
@@ -84,13 +83,12 @@ function readCyFiles(dirPath) {
 
 function parse_code(content, filename) {
   let hrstart = process.hrtime();
-  const tokenized = tokenize(content);
-  const parsed = parse(tokenized, filename);
+  const parsed = parse(content, filename);
   let hrend = process.hrtime(hrstart);
   console.info('Execution time (hr): %ds %dms', hrend[0], hrend[1] / 1000000);
 
   if (parsed.id === '(error)') {
     console.error(util.inspect(parsed, true, 10000));
   }
-  return { ast: parsed, code: content };
+  return { asts: parsed, code: content };
 }

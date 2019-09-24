@@ -1,6 +1,6 @@
-import generator, { Token } from './neo.tokenize';
-import { statements } from './parser/statement';
-import primordial from './parser/primordial';
+import { statements } from './statement';
+import primordial from './primordial';
+import tokenize, { Token } from './tokenize';
 
 type LoopStatus = 'break' | 'return' | 'infinite';
 
@@ -14,7 +14,7 @@ export class Parser {
   prev_token: Token;
   next_token: Token;
   token: Token;
-  the_token_generator: ReturnType<typeof generator>;
+  the_token_generator: ReturnType<typeof tokenize>;
 
   static the_end = Object.freeze({
     id: '(end)',
@@ -31,7 +31,7 @@ export class Parser {
     },
   });
 
-  constructor(filename: string, token_generator: ReturnType<typeof generator>) {
+  constructor(filename: string, token_generator: ReturnType<typeof tokenize>) {
     this.the_filename = filename;
     this.indentation = 0;
     this.the_error;
@@ -74,6 +74,9 @@ export class Parser {
   }
 
   set_now_module(the_now_module) {
+    if (the_now_module !== undefined) {
+      the_now_module.filename = this.the_filename
+    }
     this.now_module = the_now_module;
   }
 
@@ -246,20 +249,9 @@ export class Parser {
  * @param token_generator
  * @param filename - the original file name
  */
-export default function parse(
-  token_generator: ReturnType<typeof generator>,
-  filename: string
-) {
-  const the_parser = new Parser(filename, token_generator);
+export default function parse(code: string, filename: string) {
+  const the_parser = new Parser(filename, tokenize(code));
   try {
-    const mod = {
-      filename,
-      id: '',
-      syntaxKind: 'ModuleStatement',
-      zeroth: null,
-      front_matter: new Set(['import $NEO from "./neo.runtime.js"']),
-    };
-    the_parser.set_now_module(mod);
     the_parser.advance();
     the_parser.advance();
     let the_statements = [];
@@ -267,8 +259,7 @@ export default function parse(
     if (the_parser.token !== Parser.the_end) {
       return the_parser.error(the_parser.token, 'unexpected');
     }
-    mod.zeroth = the_statements;
-    return mod;
+    return the_statements;
   } catch (ignore) {
     return the_parser.the_error;
   }

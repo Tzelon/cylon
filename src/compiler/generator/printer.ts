@@ -222,23 +222,6 @@ export default class Printer {
     this._buf.withSource(prop, loc, cb);
   }
 
-  withFrontMatter(cb: () => void) {
-    const new_now_function = {
-      front_matter: [],
-      parent: this._now_function,
-    };
-    this._now_function = new_now_function;
-    const frontLine = this._buf.bufferLength();
-    cb();
-    this._buf.withFrontMatter(frontLine, this._now_function.front_matter);
-
-    this._now_function = this._now_function.parent;
-  }
-
-  addFrontMatter(str) {
-    this._now_function.front_matter.push(str);
-  }
-
   _space(): void {
     this._append(' ', true /* queue */);
   }

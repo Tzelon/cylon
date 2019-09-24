@@ -134,9 +134,10 @@ export interface LetStatement extends Statement {
 
 export interface ModuleStatement extends Statement {
   syntaxKind: 'ModuleStatement';
+  parent: any;
   zeroth: any;
   wunth: any;
-  front_matter: string[];
+  front_matter: Map<string, any>;
 }
 
 export interface LoopStatement extends Statement {

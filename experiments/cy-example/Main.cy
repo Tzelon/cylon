@@ -1,11 +1,6 @@
-def fun: ƒ param1... {
-    var x: 1
-    var y: 2
-    var z: 3
+module MyExample {
     def fun2: ƒ  {
-        var g: 32
+        var g: (1 + 3) / 2 = 1 /\ 1 = 2
         return g
     }
-    return x
 }
-

@@ -186,10 +186,6 @@ export default class Buffer {
     return this._queue.length > 0 || !!this._last;
   }
 
-  withFrontMatter(frontLine: number, strs: string[]) {
-    this._buf.splice(frontLine + 1, 0, ...strs);
-  }
-
   bufferLength() {
     return this._buf.length;
   }
