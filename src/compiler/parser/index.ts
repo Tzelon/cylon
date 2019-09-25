@@ -1,5 +1,4 @@
 import { statements } from './statement';
-import primordial from './primordial';
 import tokenize, { Token } from './tokenize';
 
 type LoopStatus = 'break' | 'return' | 'infinite';
@@ -107,60 +106,6 @@ export class Parser {
       wunth,
     };
     throw 'fail';
-  }
-
-  // The register function declares a new variable in a function's scope.
-  // The lookup function finds a veriable in the most relevant scope.
-  register(the_token: Token, readonly = false) {
-    // Add a variable to the current scope.
-
-    // if (!this.is_in_function()) {
-    //   this.error(the_token, 'must be inside a function');
-    // }
-
-    if (this.now_function.scope[the_token.id] !== undefined) {
-      this.error(the_token, 'already defined');
-    }
-
-    // The origin property capture the function that created the variable.
-    // The scope property holds all of the variable created or used in a function.
-    // The parent property points to the function that created this function.
-
-    the_token.readonly = readonly;
-    the_token.origin = this.now_function;
-    this.now_function.scope[the_token.id] = the_token;
-  }
-
-  lookup(id: string) {
-    // Look for the definition in the current scope.
-
-    let definition = this.now_function.scope[id];
-
-    // If that fails, search the ancestor scopes.
-
-    if (definition === undefined) {
-      let parent = this.now_function.parent;
-      while (parent !== undefined) {
-        definition = parent.scope[id];
-        if (definition !== undefined) {
-          break;
-        }
-        parent = parent.parent;
-      }
-
-      // If that fails, search the primordials.
-
-      if (definition === undefined) {
-        definition = primordial[id];
-      }
-
-      // Remember that the current function used this definition.
-
-      if (definition !== undefined) {
-        this.now_function.scope[id] = definition;
-      }
-    }
-    return definition;
   }
 
   // The advance function advences to the next token. Its companion, the prelude function,

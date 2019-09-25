@@ -3,50 +3,50 @@ import primordial from './compiler/parser/primordial';
 
 type Scope = {
   name: string;
-  type: 'module' | 'function';
+  level: number;
+  type: 'module' | 'function' | 'global';
   parent_scope: ReturnType<typeof create_scope>;
 };
 
-function create_scope({ name, type, parent_scope }: Scope) {
-  let symbols = {};
+// The symbols holds all of the variable created or used in a function or module.
+// The parent_scope property points to the scope that created this function.
+function create_scope({ name, level, type, parent_scope }: Scope) {
+  let symbols = new Map<string, Token>();
 
   return {
     get symbols() {
-        return symbols;
+      return symbols;
     },
     get parent_scope() {
-        return parent_scope;
+      return parent_scope;
+    },
+    get level() {
+      return level;
     },
     // The register function declares a new variable in a function's or module scope.
     register(the_token: Token, readonly = false) {
       // Add a variable to the current scope.
 
-      if (symbols[the_token.id] !== undefined) {
+      if (symbols.get(the_token.id) !== undefined) {
         console.error(the_token, 'already defined');
-        throw 'already defined'
+        throw 'already defined';
       }
 
-      
-      // The origin property capture the function that created the variable.
-      // The symbols holds all of the variable created or used in a function.
-      // The parent_scope property points to the function that created this function.
-      
       the_token.readonly = readonly;
-      the_token.origin = create_scope;
-      symbols[the_token.id] = the_token;
+      symbols.set(the_token.id, the_token);
     },
     // The lookup function finds a variable in the most relevant scope.
     lookup(id: string) {
       // Look for the definition in the current scope.
 
-      let definition = symbols[id];
+      let definition = symbols.get(id);
 
       // If that fails, search the ancestor scopes.
 
       if (definition === undefined) {
         let parent = parent_scope;
         while (parent !== undefined) {
-          definition = parent.symbols[id];
+          definition = parent.symbols.get(id);
           if (definition !== undefined) {
             break;
           }
@@ -59,11 +59,10 @@ function create_scope({ name, type, parent_scope }: Scope) {
           definition = primordial[id];
         }
 
-        // Remember that the current function used this definition.
-
-        // if (definition !== undefined) {
-        //   this.now_function.scope[id] = definition;
-        // }
+        if (definition === undefined) {
+          console.error(id, 'is not defined');
+          throw 'not defined';
+        }
       }
       return definition;
     },

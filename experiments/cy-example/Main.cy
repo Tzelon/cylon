@@ -1,4 +1,5 @@
 module MyExample {
+    def x: {}
     def fun2: ƒ  {
         def x: {}
 

@@ -44,7 +44,7 @@ function visit(node, parent, prop?, index?) {
       should_skip = false;
       replacement = null;
 
-      node.content = enter.call(context, node, parent, prop, index);
+      enter.call(context, node, parent, prop, index);
 
       if (replacement) {
         node = replacement;

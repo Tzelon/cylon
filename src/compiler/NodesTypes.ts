@@ -18,22 +18,38 @@ export type SyntaxKind =
   //Literals
   | 'TextLiteral'
   | 'NumberLiteral'
-  | 'Identifier';
+  | 'Identifier'
+  //General
+  | 'RecordProperty';
+
+interface Loc {
+  identifierName?: string;
+  start: {
+    line: number;
+    column: number;
+  };
+  end: {
+    line: number;
+    column: number;
+  };
+}
+
+// ======================== Generals ========================
+
+interface General {
+  syntaxKind: SyntaxKind;
+}
+
+export interface RecordProperty extends General {
+  syntaxKind: 'RecordProperty';
+}
+
+// ======================== Expressions ========================
 
 interface Expression {
   id: string;
   syntaxKind: SyntaxKind;
-  loc: {
-    identifierName?: string,
-    start: {
-      line: number;
-      column: number;
-    };
-    end: {
-      line: number;
-      column: number;
-    };
-  };
+  loc: Loc;
 }
 
 export interface Identifier extends Expression {
@@ -42,7 +58,7 @@ export interface Identifier extends Expression {
 
 export interface NumberLiteral extends Expression {
   syntaxKind: 'NumberLiteral';
-  number: any
+  number: any;
 }
 
 export interface TextLiteral extends Expression {
@@ -75,18 +91,18 @@ export interface FunctionLiteralExpression extends Expression {
   parent: object;
 }
 
-export interface BreakStatement extends Statement {
-  alphameric: boolean;
-  disrupt: true;
-  syntaxKind: 'BreakStatement';
-}
+// ======================== Statement ========================
 
 interface Statement {
   id: string;
   syntaxKind: SyntaxKind;
-  line_nr: number;
-  column_nr: number;
-  column_to: number;
+  loc: Loc;
+}
+
+export interface BreakStatement extends Statement {
+  alphameric: boolean;
+  disrupt: true;
+  syntaxKind: 'BreakStatement';
 }
 
 export interface BreakStatement extends Statement {

@@ -1,5 +1,6 @@
 import parse from './src/compiler/parser';
 import generator from './src/compiler/generator';
+import semantic_analysis from './src/compiler/ semantic.analysis';
 
 import util from 'util';
 import fs from 'fs';
@@ -11,6 +12,7 @@ Promise.all(
   readCyFiles(path.resolve(process.cwd(), './experiments/cy-example'))
 ).then(files => {
   const { asts, code } = files[0];
+  semantic_analysis(asts[0]);
   const result = generator(asts[0], { sourceMaps: true }, code);
   // const modules = resolveModules(programs);
   // const jscode = codegen(modules[0]);

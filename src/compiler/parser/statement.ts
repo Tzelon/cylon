@@ -80,7 +80,6 @@ parse_statement.def = function(the_def, parser) {
   parser.same_line();
   const is_dotted_name = parser.advance_dots(parser.token);
   defStatement.zeroth = parse_identifier(parser, parser.token);
-  parser.register(defStatement.zeroth, true);
   parser.advance();
   parser.same_line();
   parser.advance(':');
@@ -152,12 +151,13 @@ parse_statement.let = function(the_let, parser) {
   parser.same_line();
   const name = parser.token;
   parser.advance();
-  const id = name.id;
-  let left = parser.lookup(id);
-  if (left === undefined) {
-    return parser.error(name, 'expected a variable');
-  }
-  let readonly = left.readonly;
+  let left = name;
+  // const id = name.id;
+  // let left = parser.lookup(id);
+  // if (left === undefined) {
+  //   return parser.error(name, 'expected a variable');
+  // }
+  // let readonly = left.readonly;
 
   // Now we consider the suffix operators ' []  .  [ ' and ' {'.
 
@@ -170,7 +170,7 @@ parse_statement.let = function(the_let, parser) {
     // A '[]' in this position indicates an array append operation.
 
     if (parser.token.id === '[]') {
-      readonly = false;
+      // readonly = false;
       parser.token.zeroth = left;
       left = parser.token;
       parser.same_line();
@@ -178,15 +178,15 @@ parse_statement.let = function(the_let, parser) {
       break;
     }
     if (parser.token.id === '.') {
-      readonly = false;
+      // readonly = false;
       parser.advance('.');
       left = parse_dot(parser, left, parser.prev_token);
     } else if (parser.token.id === '[') {
-      readonly = false;
+      // readonly = false;
       parser.advance('[');
       left = parse_subscript(parser, left, parser.prev_token);
     } else if (parser.token.id === '(') {
-      readonly = false;
+      // readonly = false;
       parser.advance('(');
       left = parse_invocation(parser, left, parser.prev_token);
       //@ts-ignore
@@ -198,9 +198,9 @@ parse_statement.let = function(the_let, parser) {
     }
   }
   parser.advance(':');
-  if (readonly) {
-    return parser.error(left, 'assignment to a constant');
-  }
+  // if (readonly) {
+  //   return parser.error(left, 'assignment to a constant');
+  // }
   letStatement.zeroth = left;
   letStatement.wunth = expression(parser);
 
@@ -283,7 +283,6 @@ parse_statement.var = function(the_var, parser) {
   }
   parser.same_line();
   varStatement.zeroth = parse_identifier(parser, parser.token);
-  parser.register(varStatement.zeroth);
   parser.advance();
   if (parser.token.id === ':') {
     parser.same_line();
@@ -303,7 +302,6 @@ parse_statement.module = function(the_module, parser) {
   }
   parser.same_line();
   moduleStatement.zeroth = parse_identifier(parser, parser.token);
-  parser.register(moduleStatement.zeroth);
   moduleStatement.parent = parser.get_now_module();
   moduleStatement.front_matter = new Map([['runtime', 'import $NEO from "./neo.runtime.js"']]);
   //set new module before parse it's statements

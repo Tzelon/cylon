@@ -6,8 +6,9 @@ import {
   NumberLiteral,
   TextLiteral,
   Identifier,
+  RecordProperty,
 } from '../NodesTypes';
-import { Parser } from '../neo.parse';
+import { Parser } from '../parser';
 import { statements } from './statement';
 import { Token } from '../neo.tokenize';
 
@@ -241,7 +242,9 @@ prefix('{', function recordliteral(parser, the_brace) {
     properties.push({
       zeroth: key,
       wunth: value,
-    });
+      syntaxKind: 'RecordProperty',
+    } as RecordProperty);
+
     if (
       parser.token.column_nr < parser.indentation ||
       parser.token.id === '}'
@@ -360,7 +363,6 @@ prefix('ƒ', function function_literal(parser: Parser, the_function) {
     while (true) {
       parser.line_check(open);
       let the_parameter = parser.token;
-      parser.register(the_parameter);
       parser.advance();
       if (parser.token.id === '...') {
         parameters.push(ellipsis(parser, the_parameter));
@@ -549,9 +551,12 @@ export function parse_invocation(parser: Parser, left, the_paren) {
 export function parse_literals(_parser: Parser, the_token: Token) {
   let literalExpression;
   if (the_token.id === '(number)') {
-    literalExpression = the_token as NumberLiteral
+    literalExpression = the_token as NumberLiteral;
     literalExpression.syntaxKind = 'NumberLiteral';
-    _parser.now_module.front_matter.set(literalExpression.text, literalExpression.number);
+    _parser.now_module.front_matter.set(
+      literalExpression.text,
+      literalExpression.number
+    );
   } else if (the_token.id === '(text)') {
     literalExpression = the_token as TextLiteral;
     literalExpression.syntaxKind = 'TextLiteral';
@@ -598,10 +603,6 @@ export function argument_expression(
 
     // Is the token alphameric?
   } else if (the_token.alphameric === true) {
-    definition = parser.lookup(the_token.id);
-    if (definition === undefined) {
-      return parser.error(the_token, 'expected a variable');
-    }
     left = parse_identifier(parser, the_token);
     parser.advance();
   } else {
