@@ -303,7 +303,8 @@ parse_statement.module = function(the_module, parser) {
   parser.same_line();
   moduleStatement.zeroth = parse_identifier(parser, parser.token);
   moduleStatement.parent = parser.get_now_module();
-  moduleStatement.front_matter = new Map([['runtime', 'import $NEO from "./neo.runtime.js"']]);
+  // moduleStatement.front_matter = new Map([['runtime', 'import $NEO from "./neo.runtime.js"']]);
+  moduleStatement.front_matter = new Map([['runtime', 'const $NEO = require("./neo.runtime.js")']]);
   //set new module before parse it's statements
   parser.set_now_module(moduleStatement);
   

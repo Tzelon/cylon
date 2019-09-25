@@ -9,9 +9,11 @@
             "type": "node",
             "request": "launch",
             "runtimeVersion": "default",
-            // "program": "${workspaceFolder}/experiments/cy-example/simple.cy",
+            // "program": "${workspaceFolder}/experiments/cy-example/Main.cy",
             "program": "${workspaceFolder}/dist/Main.js",
-            // "outFiles": ["${workspaceFolder}/dist/Main.js"]
+            "outFiles": ["${workspaceFolder}/dist/Main.js"],
+            "stopOnEntry": true,
+            "smartStep": false
         },
         {
             "name": "Launch Build",
