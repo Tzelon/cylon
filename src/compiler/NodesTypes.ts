@@ -54,6 +54,7 @@ interface Expression {
 
 export interface Identifier extends Expression {
   syntaxKind: 'Identifier';
+  parents?: string[];
 }
 
 export interface NumberLiteral extends Expression {

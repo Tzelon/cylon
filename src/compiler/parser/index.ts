@@ -151,39 +151,6 @@ export class Parser {
     return open ? this.at_indentation() : this.same_line();
   }
 
-  /**
-   * we need to know if its a module defenition or just a variable name
-   * @returns if it is a module
-   */
-  tag_module() {
-    if (this.token.id === 'module' && this.next_token.id === '{') {
-      this.token.alphameric = false;
-      return true;
-    }
-
-    return false;
-  }
-
-  /**
-   *
-   * @param the_prev_token
-   * @returns if the name contained dots
-   */
-  advance_dots(the_token: Token) {
-    if (this.next_token.id !== '.') return false;
-
-    while (this.next_token.id === '.') {
-      this.same_line();
-      this.advance();
-      // @ts-ignore
-      the_token.column_to = next_token.column_to;
-      the_token.id += '.' + this.next_token.id;
-      this.advance();
-    }
-    this.token = the_token;
-    return true;
-  }
-
   // The 'precedence' property determines how the suffix operator is parsed. The 'parse' property
   // is a function for parsing a prefix or suffix. The 'class' property is "suffix", "statement", or undefined.
 }

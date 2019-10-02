@@ -470,6 +470,28 @@ export function parse_dot(parser: Parser, left, the_dot) {
   return the_dot;
 }
 
+export function parse_module_identifier(parser: Parser, the_token) {
+  if (parser.next_token.id !== '.') {
+    return parse_identifier(parser, the_token);
+  }
+
+  const identifier = the_token as Identifier;
+  identifier.syntaxKind = 'Identifier';
+  identifier.parents = [];
+
+  while (parser.next_token.id === '.') {
+    parser.same_line();
+    identifier.parents.push(parser.token.id);
+    parser.advance();
+    identifier.loc.start.column = parser.next_token.loc.start.column;
+    identifier.id += '.' + parser.next_token.id;
+    parser.advance();
+  }
+  identifier.loc.identifierName = identifier.id;
+
+  return identifier;
+}
+
 export function parse_subscript(parser, left, the_bracket) {
   if (
     !left.alphameric &&

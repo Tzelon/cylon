@@ -15,6 +15,7 @@ import { Parser } from '../parser';
 import {
   expression,
   parse_dot,
+  parse_module_identifier,
   parse_subscript,
   parse_invocation,
   parse_identifier,
@@ -78,19 +79,10 @@ parse_statement.def = function(the_def, parser) {
     return parser.error(parser.token, 'expected a name.');
   }
   parser.same_line();
-  const is_dotted_name = parser.advance_dots(parser.token);
   defStatement.zeroth = parse_identifier(parser, parser.token);
   parser.advance();
   parser.same_line();
   parser.advance(':');
-  const is_module = parser.tag_module();
-
-  if (is_dotted_name && !is_module) {
-    return parser.error(
-      defStatement.zeroth,
-      'only modules can have dots in ther name'
-    );
-  }
 
   defStatement.wunth = expression(parser);
   return defStatement;
@@ -301,9 +293,9 @@ parse_statement.module = function(the_module, parser) {
     return parser.error(parser.token, 'expected a name.');
   }
   parser.same_line();
-  moduleStatement.zeroth = parse_identifier(parser, parser.token);
+  
+  moduleStatement.zeroth = parse_module_identifier(parser, parser.token);
   moduleStatement.parent = parser.get_now_module();
-  // moduleStatement.front_matter = new Map([['runtime', 'import $NEO from "./neo.runtime.js"']]);
   moduleStatement.front_matter = new Map([['runtime', 'const $NEO = require("./neo.runtime.js")']]);
   //set new module before parse it's statements
   parser.set_now_module(moduleStatement);
