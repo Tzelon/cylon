@@ -12,7 +12,7 @@ Promise.all(
   readCyFiles(path.resolve(process.cwd(), './experiments/cy-example'))
 ).then(files => {
   const { asts, code } = files[0];
-  semantic_analysis(asts[0]);
+  semantic_analysis(asts);
   const result = generator(asts[0], { sourceMaps: true }, code);
   // const modules = resolveModules(programs);
   // const jscode = codegen(modules[0]);

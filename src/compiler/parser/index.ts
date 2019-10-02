@@ -34,12 +34,12 @@ export class Parser {
     this.the_filename = filename;
     this.indentation = 0;
     this.the_error;
-    this.now_module; // The scope currently being processed. can be inside a function or module
+    this.now_module; // The module currently being processed. 
     this.now_function = {
       id: '',
       scope: Object.create(null),
       zeroth: null,
-    }; // The scope currently being processed. can be inside a function or module
+    }; // The function scope currently being processed. can be inside a function or module
     this.loop = []; // An array of loop exit status.
 
     // The generator function supplies a stream of token objects.

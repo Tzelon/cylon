@@ -12,8 +12,8 @@ module MyExample {
         
         return g
     }
-}
 
-module MyExample.Inner.Outer {
-    def r: "hey"
+    module App {
+        def a: "hey"
+    }
 }

@@ -1,19 +1,24 @@
 import { Token } from './compiler/neo.tokenize';
 import primordial from './compiler/parser/primordial';
 
-type Scope = {
+export type Scope = ReturnType<typeof create_scope>;
+
+type ScopeParams = {
   name: string;
   level: number;
   type: 'module' | 'function' | 'global';
-  parent_scope: ReturnType<typeof create_scope>;
+  parent_scope: Scope;
 };
 
 // The symbols holds all of the variable created or used in a function or module.
 // The parent_scope property points to the scope that created this function.
-function create_scope({ name, level, type, parent_scope }: Scope) {
-  let symbols = new Map<string, Token>();
+function create_scope({ name, level, type, parent_scope }: ScopeParams) {
+  let symbols = new Map<string, Token | Scope>();
 
   return {
+    get name() {
+      return name;
+    },
     get symbols() {
       return symbols;
     },
@@ -35,6 +40,7 @@ function create_scope({ name, level, type, parent_scope }: Scope) {
       the_token.readonly = readonly;
       symbols.set(the_token.id, the_token);
     },
+
     // The lookup function finds a variable in the most relevant scope.
     lookup(id: string) {
       // Look for the definition in the current scope.
@@ -66,7 +72,40 @@ function create_scope({ name, level, type, parent_scope }: Scope) {
       }
       return definition;
     },
+    // The register function declares a new variable in a function's or module scope.
+    register_scope(the_scope) {
+      // Add a variable to the current scope.
+
+      if (symbols.get(the_scope.name) !== undefined) {
+        console.error(the_scope, 'already defined');
+        throw 'already defined';
+      }
+
+      symbols.set(the_scope.name, the_scope);
+    },
+
+    lookup_scope(parents: string[]) {
+      const parents_paths = create_parents_paths(parents);
+      let scope;
+
+      //Find module immediate parent
+      while (parents_paths.length > 0) {
+        const parent = parents_paths.shift();
+
+        scope = (scope ? scope.symbols.get(parent) : symbols.get(parent)) as Scope;
+        if (scope === undefined) {
+          throw 'Cannot find module path';
+        }
+      }
+      return scope;
+    },
   };
+}
+
+function create_parents_paths(parents: string[]) {
+  return parents.map((name, index) => {
+    return parents.slice(0, index + 1).join('.');
+  });
 }
 
 export default create_scope;

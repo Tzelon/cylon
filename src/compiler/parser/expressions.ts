@@ -472,6 +472,9 @@ export function parse_dot(parser: Parser, left, the_dot) {
 
 export function parse_module_identifier(parser: Parser, the_token) {
   if (parser.next_token.id !== '.') {
+    if (parser.is_in_module()) {
+      the_token.id = parser.get_now_module().zeroth.id + '.' + the_token.id;
+    }
     return parse_identifier(parser, the_token);
   }
 
@@ -570,12 +573,12 @@ export function parse_invocation(parser: Parser, left, the_paren) {
   return the_paren;
 }
 
-export function parse_literals(_parser: Parser, the_token: Token) {
+export function parse_literals(parser: Parser, the_token: Token) {
   let literalExpression;
   if (the_token.id === '(number)') {
     literalExpression = the_token as NumberLiteral;
     literalExpression.syntaxKind = 'NumberLiteral';
-    _parser.now_module.front_matter.set(
+    parser.now_module.front_matter.set(
       literalExpression.text,
       literalExpression.number
     );
