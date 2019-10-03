@@ -108,8 +108,7 @@ export class Parser {
     throw 'fail';
   }
 
-  // The advance function advences to the next token. Its companion, the prelude function,
-  // tries to split the current token into two tokens.
+  // The advance function advences to the next token. 
   advance(id?: string) {
     // Advance to the next token using the token generator.
     // If an 'id' is supplied, make sure that the current token matches that 'id'.

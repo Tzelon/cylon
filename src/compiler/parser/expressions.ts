@@ -7,6 +7,9 @@ import {
   TextLiteral,
   Identifier,
   RecordProperty,
+  ImportSpecifier,
+  ImportNameBinding,
+  ImportOnlyStatement,
 } from '../NodesTypes';
 import { Parser } from '../parser';
 import { statements } from './statement';
@@ -472,19 +475,15 @@ export function parse_dot(parser: Parser, left, the_dot) {
 
 export function parse_module_identifier(parser: Parser, the_token) {
   if (parser.next_token.id !== '.') {
-    if (parser.is_in_module()) {
-      the_token.id = parser.get_now_module().zeroth.id + '.' + the_token.id;
-    }
-    return parse_identifier(parser, the_token);
+    return parse_identifier(parser, the_token, true);
   }
 
   const identifier = the_token as Identifier;
   identifier.syntaxKind = 'Identifier';
-  identifier.parents = [];
+  identifier.isModule = true;
 
   while (parser.next_token.id === '.') {
     parser.same_line();
-    identifier.parents.push(parser.token.id);
     parser.advance();
     identifier.loc.start.column = parser.next_token.loc.start.column;
     identifier.id += '.' + parser.next_token.id;
@@ -573,6 +572,109 @@ export function parse_invocation(parser: Parser, left, the_paren) {
   return the_paren;
 }
 
+function parse_as(parser: Parser, the_token) {
+  if (parser.token.id === 'as') {
+    const the_as = {
+      syntaxKind: 'ImportSpecifier',
+      loc: parser.token.loc,
+    } as ImportSpecifier;
+    parser.advance();
+    parser.advance(':');
+    parser.same_line();
+
+    the_as.name = the_token.id;
+    the_as.alias = parse_identifier(parser, parser.token);
+    parser.advance();
+    return the_as;
+  }
+  return the_token;
+}
+
+function parse_only(parser: Parser, the_only) {
+  const theOnlyStatement = the_only as ImportOnlyStatement;
+  theOnlyStatement.syntaxKind = 'ImportOnlyStatement';
+  if (the_only.id === 'only') {
+    parser.advance(':');
+    parser.advance('[');
+    parser.same_line();
+    const imports = [];
+
+    while (true) {
+      const the_import = parser.token;
+      parser.advance();
+      if (parser.token.id === 'as') {
+        parser.same_line();
+        imports.push(parse_as(parser, the_import));
+        //@ts-ignore
+        if (parser.token.id !== ',') {
+          break;
+        }
+        parser.advance(',');
+      } else {
+        const specifier = {
+          syntaxKind: 'ImportSpecifier',
+          loc: parser.token.loc,
+          name: parse_identifier(parser, the_import),
+        } as ImportSpecifier;
+        imports.push(specifier);
+        if (parser.token.id !== ',') {
+          break;
+        }
+        parser.same_line();
+        parser.advance(',');
+      }
+    }
+    theOnlyStatement.zeroth = imports;
+    return theOnlyStatement;
+  }
+  return theOnlyStatement;
+}
+
+export function parse_import(parser: Parser) {
+  let has_as = false;
+  let has_only = false;
+  let description;
+  parser.advance(',');
+  while (true) {
+    parser.same_line();
+    let the_description = parser.token;
+    parser.advance();
+
+    if (the_description.id === 'as') {
+      if (has_only) {
+        parser.error(the_description, 'as and only cannot leave togther');
+      }
+      has_as = true;
+      parser.advance(':');
+      parser.same_line();
+      description = {
+        id: the_description.id,
+        loc: the_description.loc,
+        binds: parse_identifier(parser, parser.token),
+        syntaxKind: 'ImportNameBinding',
+      } as ImportNameBinding;
+    } else if (the_description.id === 'only') {
+      if (has_as) {
+        parser.error(the_description, 'as and only cannot leave togther');
+      }
+      has_only = true;
+      description = {
+        id: the_description.id,
+        loc: the_description.loc,
+        binds: parse_only(parser, the_description),
+        syntaxKind: 'ImportNameBinding',
+      } as ImportNameBinding;
+    } else {
+      if (parser.token.id !== ',') {
+        break;
+      }
+      parser.same_line();
+      parser.advance(',');
+    }
+  }
+  return description;
+}
+
 export function parse_literals(parser: Parser, the_token: Token) {
   let literalExpression;
   if (the_token.id === '(number)') {
@@ -590,10 +692,15 @@ export function parse_literals(parser: Parser, the_token: Token) {
   return literalExpression;
 }
 
-export function parse_identifier(_parser: Parser, the_token: Token) {
+export function parse_identifier(
+  _parser: Parser,
+  the_token: Token,
+  isModule = false
+) {
   const identifier = the_token as Identifier;
   identifier.syntaxKind = 'Identifier';
   identifier.loc.identifierName = identifier.id;
+  identifier.isModule = isModule;
   return identifier;
 }
 

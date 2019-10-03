@@ -271,14 +271,12 @@ export default class Printer {
     const printMethod = this[node.syntaxKind];
     if (!printMethod) {
       throw new ReferenceError(
-        `unknown node of type ${JSON.stringify(
-          node.type
-        )} with constructor ${JSON.stringify(node && node.constructor.name)}`
+        `unknown node of type ${JSON.stringify(node.syntaxKind)}`
       );
     }
 
     this._printStack.push(node);
-  
+
     const loc = node.syntaxKind === 'ModuleStatement' ? null : node.loc;
     this.withSource('start', loc, () => {
       printMethod.call(this, node, parent);

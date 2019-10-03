@@ -6,10 +6,15 @@ Remember:
     Generator job is to generate Javascript 
 
 Generator: 
-    ☐ buffer.ts and source-map.ts need to be refactor for using Cylon parser output
+    ✔ buffer.ts and source-map.ts need to be refactor for using Cylon parser output @done (10/3/2019, 4:36:14 PM)
 
 SemanticAnalyzer:
     ✔ create it :) @done (9/25/2019, 11:35:09 AM)
 
 Parser: 
     ☐ Problem with parsing default value in function params
+
+Modules:
+    ☐ Should we have nested modules?
+    ☐ Implement 'use' keyword for modules.
+    ☐ Import statment need to be refactor.

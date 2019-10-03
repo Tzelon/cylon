@@ -10,6 +10,8 @@ export type SyntaxKind =
   | 'ReturnStatement'
   | 'LetStatement'
   | 'ModuleStatement'
+  | 'ImportStatement'
+  | 'ImportOnlyStatement'
   //Expressions
   | 'ArrayLiteralExpression'
   | 'FunctionLiteralExpression'
@@ -20,7 +22,9 @@ export type SyntaxKind =
   | 'NumberLiteral'
   | 'Identifier'
   //General
-  | 'RecordProperty';
+  | 'RecordProperty'
+  | 'ImportSpecifier'
+  | 'ImportNameBinding';
 
 interface Loc {
   identifierName?: string;
@@ -40,6 +44,20 @@ interface General {
   syntaxKind: SyntaxKind;
 }
 
+export interface ImportSpecifier extends General {
+  syntaxKind: 'ImportSpecifier';
+  loc: Loc;
+  name: any;
+  alias?: any;
+}
+
+export interface ImportNameBinding extends General {
+  syntaxKind: 'ImportNameBinding';
+  id: string
+  loc: Loc;
+  binds: any;
+}
+
 export interface RecordProperty extends General {
   syntaxKind: 'RecordProperty';
 }
@@ -54,7 +72,7 @@ interface Expression {
 
 export interface Identifier extends Expression {
   syntaxKind: 'Identifier';
-  parents?: string[];
+  isModule?: boolean;
 }
 
 export interface NumberLiteral extends Expression {
@@ -171,3 +189,15 @@ export interface ReturnStatement extends Statement {
   disrupt: true;
   return: true;
 }
+export interface ImportStatement extends Statement {
+  syntaxKind: 'ImportStatement';
+  zeroth: any;
+  wunth: any;
+}
+
+export interface ImportOnlyStatement extends Statement {
+  syntaxKind: 'ImportOnlyStatement';
+  zeroth: any;
+  wunth: any;
+}
+

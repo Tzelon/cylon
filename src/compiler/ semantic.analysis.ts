@@ -2,6 +2,8 @@ import { walk } from '../../utils/ast-visitor';
 import create_scope from '../scope.tree';
 
 export default function semantic_analysis(trees: any[]) {
+  let modules = new Set(trees.map(mod => mod.zeroth.id));
+
   let global_scope = create_scope({
     level: 0,
     name: 'global',
@@ -41,6 +43,22 @@ export default function semantic_analysis(trees: any[]) {
         now_scope = now_scope.parent_scope;
       },
     },
+    ImportNameBinding: {
+      enter(node) {
+        if (node.id === 'as') {
+          now_scope.register(node.binds, true);
+        }
+      },
+    },
+    ImportSpecifier: {
+      enter(node) {
+        if (node.alias) {
+          now_scope.register(node.alias);
+        } else {
+          now_scope.register(node.name);
+        }
+      },
+    },
     VarStatement: {
       enter(node) {
         now_scope.register(node.zeroth);
@@ -53,7 +71,13 @@ export default function semantic_analysis(trees: any[]) {
     },
     Identifier: {
       enter(node) {
-        now_scope.lookup(node.id);
+        if (node.isModule) {
+          if (!modules.has(node.id)) {
+            throw 'module not found';
+          }
+        } else {
+          now_scope.lookup(node.id);
+        }
       },
     },
   });

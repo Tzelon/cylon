@@ -9,11 +9,13 @@ import {
   LetStatement,
   LoopStatement,
   ModuleStatement,
+  ImportStatement,
 } from '../NodesTypes';
-import { Parser } from '../parser';
+import parse, { Parser } from '../parser';
 
 import {
   expression,
+  parse_import,
   parse_dot,
   parse_module_identifier,
   parse_subscript,
@@ -31,7 +33,8 @@ interface ParseStatemets {
   loop: (the_loop, parser: Parser) => LoopStatement;
   return: (the_return, parser: Parser) => ReturnStatement;
   var: (the_var, parser: Parser) => VarStatement;
-  module: (the_var, parser: Parser) => ModuleStatement;
+  module: (the_module, parser: Parser) => ModuleStatement;
+  import: (the_import, parser: Parser) => ImportStatement;
 }
 
 // The 'parse_statement' contain functions that do the specialized parsing.
@@ -293,13 +296,15 @@ parse_statement.module = function(the_module, parser) {
     return parser.error(parser.token, 'expected a name.');
   }
   parser.same_line();
-  
+
   moduleStatement.zeroth = parse_module_identifier(parser, parser.token);
   moduleStatement.parent = parser.get_now_module();
-  moduleStatement.front_matter = new Map([['runtime', 'const $NEO = require("./neo.runtime.js")']]);
+  moduleStatement.front_matter = new Map([
+    ['runtime', 'const $NEO = require("./neo.runtime.js")'],
+  ]);
   //set new module before parse it's statements
   parser.set_now_module(moduleStatement);
-  
+
   parser.advance();
   parser.advance('{');
   parser.indent();
@@ -312,6 +317,28 @@ parse_statement.module = function(the_module, parser) {
   parser.set_now_module(parser.get_now_module().parent);
 
   return moduleStatement;
+};
+
+parse_statement.import = function(the_import, parser) {
+  const importStatement = the_import as ImportStatement;
+  importStatement.syntaxKind = 'ImportStatement';
+
+  if (!parser.is_in_module()) {
+    parser.error(the_import, 'import should be in module top level');
+  }
+
+  if (!parser.token.alphameric) {
+    return parser.error(parser.token, 'expected a name.');
+  }
+
+  parser.same_line();
+  importStatement.zeroth = parse_module_identifier(parser, parser.token);
+  parser.advance();
+  if (parser.token.id !== ',') {
+    return the_import;
+  }
+  importStatement.wunth = parse_import(parser);
+  return the_import;
 };
 
 // The statements function parses statements, returing an array of statement tokens.
