@@ -12,8 +12,9 @@ module MyExample {
         
         return g
     }
+}
 
-    module App {
-        def a: "hey"
-    }
+
+module App {
+    def a: "a"
 }
